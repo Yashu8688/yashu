@@ -1,0 +1,303 @@
+/* General Resets and Body */
+body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f6f8fa;
+    color: #333;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.analytics-container {
+    min-height: 100vh;
+}
+
+/* Header */
+.analytics-header {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 0.8rem 2rem;
+    position: relative;
+    display: flex;
+    justify-content: center;
+}
+
+.analytics-header-content {
+    max-width: 1200px;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.back-link {
+    position: absolute;
+    left: 2rem;
+    color: #555;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.header-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.title-wrapper svg {
+    color: #666;
+}
+
+/* Main Content Area */
+.analytics-main {
+    max-width: 1200px;
+    margin: 1.5rem auto;
+    padding: 0 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Metric Cards Section */
+.metrics-section {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Explicitly set to 4 columns */
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.metric-card {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem; /* Tighter padding to match image */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e7e7e7;
+    display: flex;
+    flex-direction: column;
+}
+
+.metric-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.metric-header svg {
+    color: #888; /* Icon color */
+}
+
+.metric-card h2 {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #666;
+    margin: 0;
+}
+
+.metric-value {
+    font-size: 2.25rem; /* Larger font size for the value */
+    font-weight: 600; /* Lighter weight than before */
+    color: #2a64c4; /* Blue color for values */
+    margin: 0;
+}
+
+/* Charts and Lists Section (Side-by-side panels) */
+.charts-and-lists-section {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr; /* Adjusted ratio to match image */
+    gap: 1.5rem;
+}
+
+/* Panel Styling (for both left and right panels) */
+.chart-panel, .list-panel {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e7e7e7;
+}
+
+.panel-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    display: flex; /* Make titles flex to align with icons */
+    align-items: center;
+    gap: 0.5rem; /* Space between icon and text */
+}
+
+.panel-title svg {
+    color: #2a64c4; /* Blue icon color */
+}
+
+/* Connection Growth Chart */
+.growth-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.growth-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; /* Reduced gap */
+    padding: 0.4rem 0; /* Tighter vertical spacing */
+}
+
+.month {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #666;
+    width: 2.5rem; /* Fixed width for alignment */
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.progress-bar {
+    flex-grow: 1;
+    height: 8px;
+    background-color: #eaf1fb; /* Lighter background bar color */
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #1968E6; /* A specific blue to match the image */
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.count {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #666;
+    width: 2.5rem;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Recent Connections List */
+.connections-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.connection-item {
+    display: flex;
+    align-items: center;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.connection-item:last-child {
+    border-bottom: none;
+}
+
+.connection-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: #eaf1fb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 0.8rem;
+}
+
+.connection-avatar svg {
+    width: 18px;
+    height: 18px;
+    color: #5a8ee5;
+}
+
+.connection-details {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.connection-name {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 0.2rem;
+}
+
+.connection-title {
+    font-size: 0.8rem;
+    color: #777;
+    margin: 0;
+}
+
+.connection-meta {
+    font-size: 0.75rem;
+    color: #999;
+    margin: 0.2rem 0 0 0;
+}
+
+/* Connections by Industry */
+.industry-section {
+    /* No specific styling needed, uses .chart-panel */
+}
+
+.industry-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.industry-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.industry-item:last-child {
+    border-bottom: none;
+}
+
+.industry-name {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #333;
+    /* Removed flex-grow to keep name and percentage together */
+    flex-grow: 0;
+    /* Removed margin-right as it's now handled by the new percentage class */
+}
+
+.industry-percentage {
+    /* New styles for the highlighted "chip" look */
+    background-color: #f0f4f9; /* A light blue-gray background color */
+    color: #6a82a0; /* A darker text color for contrast */
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem; /* Slightly smaller font size */
+    font-weight: 500;
+    margin-left: 0.75rem; /* Space between the name and the percentage chip */
+    flex-grow: 1; /* Pushes the count to the far right */
+    text-align: left;
+}
+
+.industry-count {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #333;
+    width: 3rem;
+    text-align: right;
+    flex-shrink: 0;
+}
