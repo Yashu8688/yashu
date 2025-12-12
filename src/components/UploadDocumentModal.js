@@ -1,226 +1,152 @@
-import React, { useState } from "react";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { storage, db, auth } from "../firebase";
-import "./UploadDocumentModal.css";
+import React, { useState } from 'react';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth, db } from '../firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import './UploadDocumentModal.css';
 
-export default function UploadDocumentModal({ onClose }) {
-  const [startDate, setStartDate] = useState("");
-  const [expiryDate, setExpiryDate] = useState("");
-  const [docType, setDocType] = useState("");
-  const [reminders, setReminders] = useState([30, 15, 1]);
+const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
+  const [user] = useAuthState(auth);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [docType, setDocType] = useState('Passport');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [reminders, setReminders] = useState([]);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
 
-  const reminderOptions = [30, 15, 7, 3, 1];
-
-  const toggleReminder = (days) => {
-    setReminders((prev) =>
-      prev.includes(days)
-        ? prev.filter((d) => d !== days)
-        : [...prev, days]
-    );
-  };
-
-  const handleFileSelect = (event) => {
-    const file = event.target.files[0];
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        setError("File size must be less than 10MB");
-        return;
-      }
       setSelectedFile(file);
-      setError("");
+      setError('');
     }
   };
 
+  const triggerFileSelect = () => {
+    document.getElementById('file-input-id').click();
+  }
+
+  const handleReminderChange = (day) => {
+    setReminders(prev => 
+        prev.includes(day) ? prev.filter(r => r !== day) : [...prev, day]
+    );
+  };
+
   const handleUpload = async () => {
-    if (!selectedFile || !docType || !expiryDate) {
-      setError("Please select a file, document type, and expiry date");
+    if (!selectedFile) {
+      setError('Please select a file to upload.');
+      return;
+    }
+    if (!user) {
+      setError('You must be logged in to upload documents.');
       return;
     }
 
     setUploading(true);
-    setError("");
-    console.log("Starting upload...");
+    setError('');
 
     try {
-      const user = auth.currentUser;
-      if (!user) {
-        setError("User not authenticated");
-        console.log("No authenticated user");
-        return;
-      }
-      console.log("User authenticated:", user.uid);
-
-      // First, try to save to Firestore to test if Firestore works
-      console.log("Testing Firestore connection...");
-      const testDocRef = await addDoc(collection(db, 'users', user.uid, 'documents'), {
-        name: "test_" + selectedFile.name,
+      // Save document metadata directly to Firestore, skipping Firebase Storage.
+      await addDoc(collection(db, 'users', user.uid, 'documents'), {
+        name: selectedFile.name,
         type: docType,
         startDate: startDate ? new Date(startDate) : null,
-        expiryDate: new Date(expiryDate),
-        reminders: reminders,
-        fileURL: "testing", // temporary
+        expiryDate: expiryDate ? new Date(expiryDate) : null,
+        reminderDays: reminders,
+        fileURL: '', // File not uploaded, so URL is empty
+        storagePath: '', // File not uploaded, so path is empty
         uploadedAt: serverTimestamp(),
         size: selectedFile.size,
       });
-      console.log("Firestore test successful, doc ID:", testDocRef.id);
 
-      // Now upload file to Firebase Storage
-      const storageRef = ref(storage, `documents/${user.uid}/${selectedFile.name}`);
-      console.log("Storage ref created:", storageRef.fullPath);
-      const uploadTask = uploadBytesResumable(storageRef, selectedFile);
-
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          setUploadProgress(progress);
-          console.log("Upload progress:", progress);
-        },
-        (error) => {
-          console.error("Upload error:", error);
-          setError("Upload failed: " + error.message);
-          setUploading(false);
-        },
-        async () => {
-          console.log("Upload completed, getting download URL...");
-          // Upload completed successfully
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          console.log("Download URL:", downloadURL);
-
-          // Update the Firestore document with the real URL
-          console.log("Updating Firestore with download URL...");
-          // Note: We can't update the test document easily, so we'll create a new one
-          await addDoc(collection(db, 'users', user.uid, 'documents'), {
-            name: selectedFile.name,
-            type: docType,
-            startDate: startDate ? new Date(startDate) : null,
-            expiryDate: new Date(expiryDate),
-            reminders: reminders,
-            fileURL: downloadURL,
-            uploadedAt: serverTimestamp(),
-            size: selectedFile.size,
-          });
-          console.log("Document saved to Firestore with download URL");
-
-          setUploading(false);
-          onClose();
-        }
-      );
+      setUploading(false);
+      if (onUploadSuccess) onUploadSuccess();
+      else onClose();
+      
     } catch (err) {
-      console.error("Upload exception:", err);
-      setError("Upload failed: " + err.message);
+      console.error("Firestore save error:", err);
+      setError(`Failed to save document: ${err.message}`);
       setUploading(false);
     }
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-box">
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-box" onClick={e => e.stopPropagation()}> 
         <div className="modal-header">
           <div>
             <h2>Upload Document</h2>
-            <p>I-94 Travel History</p>
+            <p>Add a new document to your vault</p>
           </div>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <button onClick={onClose} className="close-btn">&times;</button>
         </div>
 
         <div className="modal-body">
-          {/* File Upload */}
           <div className="section">
-            <label className="label">Select File</label>
-            <input
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
-              onChange={handleFileSelect}
-              style={{ display: 'none' }}
-              id="file-input"
-            />
-            <label htmlFor="file-input" className="file-upload">
-              <p>{selectedFile ? selectedFile.name : "Click to upload or drag and drop"}</p>
-              <small>PDF, JPG, PNG (max 10MB)</small>
-            </label>
-            {uploading && <div className="progress-bar"><div style={{ width: `${uploadProgress}%` }}></div></div>}
-          </div>
-
-          {/* Start Date */}
-          <div className="section">
-            <label className="label">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="input"
-            />
-          </div>
-
-          {/* Expiry Date */}
-          <div className="section">
-            <label className="label">Expiry Date</label>
-            <input
-              type="date"
-              value={expiryDate}
-              onChange={(e) => setExpiryDate(e.target.value)}
-              className="input"
-            />
-          </div>
-
-          {/* Document Type */}
-          <div className="section">
-            <label className="label">Type of Document</label>
-            <select
-              className="input"
-              value={docType}
-              onChange={(e) => setDocType(e.target.value)}
-            >
-              <option value="">Select Type</option>
-              <option value="i94">I-94 Travel History</option>
-              <option value="passport">Passport</option>
-              <option value="visa">Visa Document</option>
-              <option value="id">Government ID</option>
+            <label className="label">Document Type</label>
+            <select className="input" value={docType} onChange={(e) => setDocType(e.target.value)}>
+              <option>Passport</option>
+              <option>Visa</option>
+              <option>I-20</option>
+              <option>Driver's License</option>
+              <option>Other</option>
             </select>
           </div>
 
-          {/* Reminders */}
           <div className="section">
-            <label className="label">Set Reminders</label>
+            <label className="label">Document File</label>
+            <div className="file-upload" onClick={triggerFileSelect}>
+                <input id="file-input-id" type="file" onChange={handleFileSelect} style={{display: 'none'}}/>
+                {selectedFile ? 
+                  <span>{selectedFile.name}</span> : 
+                  <span>+ Click to select a file</span>
+                }
+                <small>PDF, PNG, JPG up to 10MB</small>
+            </div>
+          </div>
+
+          <div className="section">
+            <label className="label">Start Date</label>
+            <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+
+          <div className="section">
+            <label className="label">Expiry Date</label>
+            <input className="input" type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+          </div>
+
+          <div className="section">
+            <label className="label">Set Reminder</label>
             <div className="reminder-buttons">
-              {reminderOptions.map((days) => (
-                <button
-                  key={days}
-                  className={
-                    reminders.includes(days)
-                      ? "reminder-btn selected"
-                      : "reminder-btn"
-                  }
-                  onClick={() => toggleReminder(days)}
-                >
-                  {days} days
-                </button>
+              {[1, 3, 7, 15, 30].map(days => (
+                  <button key={days} 
+                      className={`reminder-btn ${reminders.includes(days) ? 'selected' : ''}`}
+                      onClick={() => handleReminderChange(days)}>
+                      {days} {days === 1 ? 'day' : 'days'}
+                  </button>
               ))}
             </div>
-
-            <p className="green-text">
-              ✓ You will be reminded {reminders.join(", ")} days before expiry
-            </p>
+            <p className="green-text">We'll send you a notification so you never miss a renewal.</p>
           </div>
 
-          {/* Error Message */}
-          {error && <p className="error-text">{error}</p>}
+          {error && <p className="error-message" style={{color: 'red', marginBottom: '10px'}}>{error}</p>}
+          {uploading && (
+              <div style={{marginTop: '10px'}}>
+                  <p style={{textAlign: 'center', fontSize: '13px', marginTop: '4px'}}>Saving...</p>
+              </div>
+          )}
 
-          {/* Buttons */}
           <div className="btn-row">
-            <button className="cancel-btn" onClick={onClose}>Cancel</button>
+            <button className="cancel-btn" onClick={onClose} disabled={uploading}>Cancel</button>
             <button className="upload-btn" onClick={handleUpload} disabled={uploading}>
-              {uploading ? "Uploading..." : "Upload Document"}
+              {uploading ? 'Saving...' : 'Upload Document'}
             </button>
           </div>
+
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default UploadDocumentModal;

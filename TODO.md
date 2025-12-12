@@ -1,18 +1,18 @@
 # TODO List for Firebase Document Upload and Timeline Setup
 
 ## 1. Update firebase.js
-- [ ] Add Firebase Storage import and export
+- [x] Add Firebase Storage import and export
 
 ## 2. Modify UploadDocumentModal.js
-- [ ] Add file input handling
-- [ ] Implement file upload to Firebase Storage
-- [ ] Save document metadata to Firestore
-- [ ] Handle upload progress and errors
+- [x] Add file input handling
+- [x] Implement file upload to Firebase Storage
+- [x] Save document metadata to Firestore
+- [x] Handle upload progress and errors
 
 ## 3. Update Vault.js
-- [ ] Fetch documents from Firestore
-- [ ] Replace hardcoded documents with dynamic data
-- [ ] Handle loading states and errors
+- [x] Fetch documents from Firestore
+- [x] Replace hardcoded documents with dynamic data
+- [x] Handle loading states and errors
 
 ## 4. Update Dashboard.js
 - [ ] Fetch document timelines from Firestore
