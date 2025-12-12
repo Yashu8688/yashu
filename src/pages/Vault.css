@@ -1,0 +1,135 @@
+/* src/pages/Vault.css */
+
+.vault-container {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f8f9fe 0%, #fef9fd 100%);
+  padding-bottom: 100px;
+}
+
+.vault-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+.vault-banner {
+  width: 100%;
+  background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+  border-radius: 24px;
+  padding: 28px;
+  margin-bottom: 24px;
+  color: white;
+  box-shadow: 0 10px 30px rgba(99,102,241,0.2);
+}
+
+.vault-banner h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.vault-banner p { margin:0; opacity: 0.95 }
+
+.vault-panel {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 6px 30px rgba(0,0,0,0.06);
+  border: 1px solid #f1f5f9;
+}
+
+.vault-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.vault-panel-header h2 { margin:0; font-size:18px }
+.vault-panel-header .sub { margin:4px 0 0; color:#64748b; font-size:13px }
+
+.upload-btn {
+  background: linear-gradient(135deg,#8b5cf6,#ec4899);
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.storage-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px }
+.storage-label { color:#64748b }
+.storage-value { color:#7c3cff; font-weight:600 }
+
+.storage-bar { height:12px; background:#f3eef9; border-radius:8px; overflow:hidden; margin-bottom:20px }
+.storage-fill { height:100%; background:linear-gradient(90deg,#8b5cf6 0%,#ec4899 100%); width: 50% }
+
+.docs-list { display:flex; flex-direction:column; gap:12px }
+
+.doc-item {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:16px;
+  background:#fafbff;
+  border-radius:12px;
+  border:1px solid #f1f5f9;
+}
+
+.doc-left { display:flex; align-items:center; gap:12px }
+.doc-icon { width:48px; height:48px; border-radius:12px; background:white; display:flex; align-items:center; justify-content:center; border:1px solid #eaeffb }
+.doc-title { font-weight:600; color:#1f2937 }
+.tag { margin-left:8px; padding:4px 8px; border-radius:12px; font-size:12px; color:#ef4444; background:#fff0f0 }
+.tag.required { background:#fff0f0; color:#ef4444 }
+.doc-meta { color:#64748b; font-size:13px }
+
+.doc-actions { display:flex; gap:8px }
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e6eefc;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.icon-btn svg { display: block; color: #374151 }
+.icon-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(99,102,241,0.08); border-color: #e0e7ff }
+
+/* Missing / required doc card style */
+.doc-missing {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:18px;
+  border-radius:12px;
+  background: #fff8f0;
+  border: 2px solid #fcd34d;
+}
+
+.missing-icon { width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:#fff7ed; color:#92400e }
+.doc-missing .doc-title { font-weight:600; color:#92400e }
+.doc-desc { color:#92400e; margin-top:6px }
+.upload-cta { background:#f97316; color:white; border:none; padding:8px 14px; border-radius:10px; cursor:pointer }
+
+.encryption-note, .enc-left, .enc-content { display:flex }
+.encryption-note { margin-top:18px; padding:16px; background:#f0f9ff; border-radius:12px; gap:12px; align-items:center }
+.enc-left { font-size:22px; }
+.enc-title { font-weight:600; color:#1f2937 }
+.enc-desc { color:#64748b }
+
+.floating-ai-btn { position:fixed; right:32px; bottom:100px; width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:white; border:none; box-shadow:0 8px 24px rgba(99,102,241,0.35); cursor:pointer }
+
+@media (max-width:768px) {
+  .vault-content { padding:16px }
+  .vault-banner h1 { font-size:22px }
+  .storage-value { font-size:13px }
+  .doc-icon { width:44px; height:44px }
+  .floating-ai-btn { right:20px; bottom:90px }
+}

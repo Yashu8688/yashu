@@ -1,0 +1,147 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  z-index: 999;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: 480px;
+  background: white;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.modal-header {
+  background: linear-gradient(to right, #ff4f8b, #7d2ae8);
+  padding: 16px;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.modal-header p {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-top: 4px;
+}
+
+.modal-body {
+  padding: 20px 24px;
+}
+
+.section {
+  margin-bottom: 18px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.file-upload {
+  border: 2px dashed #bbb;
+  text-align: center;
+  padding: 24px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.file-upload:hover {
+  background: #f6f6f6;
+}
+
+.file-upload small {
+  display: block;
+  margin-top: 6px;
+  color: #777;
+}
+
+.reminder-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reminder-btn {
+  padding: 8px 14px;
+  border: 1px solid #bbb;
+  background: #eee;
+  border-radius: 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.reminder-btn.selected {
+  background: #e8d4ff;
+  border-color: #a258ff;
+  color: #8226ff;
+}
+
+.green-text {
+  color: #129f43;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.btn-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.cancel-btn {
+  padding: 10px 18px;
+  background: white;
+  border: 1px solid #aaa;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.upload-btn {
+  padding: 10px 18px;
+  background: #7d2ae8;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.upload-btn:hover {
+  background: #6b1fd6;
+}
