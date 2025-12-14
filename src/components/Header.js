@@ -1,5 +1,6 @@
 // src/components/Header.js
 import React from "react";
+import { Link } from "react-router-dom";
 import { auth } from "../firebase";
 import "./Header.css";
 
@@ -51,7 +52,7 @@ function Header() {
           </svg>
         </button>
 
-        <button className="header-icon-btn notification-btn">
+        <Link to="/notifications" className="header-icon-btn notification-btn">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
             <path
               d="M15 6.66667C15 5.34058 14.4732 4.06881 13.5355 3.13113C12.5979 2.19345 11.3261 1.66667 10 1.66667C8.67392 1.66667 7.40215 2.19345 6.46447 3.13113C5.52678 4.06881 5 5.34058 5 6.66667C5 12.5 2.5 14.1667 2.5 14.1667H17.5C17.5 14.1667 15 12.5 15 6.66667Z"
@@ -71,7 +72,7 @@ function Header() {
             />
           </svg>
           <span className="notification-badge">3</span>
-        </button>
+        </Link>
 
         <button className="premium-btn">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">

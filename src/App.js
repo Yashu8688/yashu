@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard";
 import News from "./pages/News";
 import Vault from "./pages/Vault";
 import Advisors from "./pages/Advisors";
+import Notifications from "./pages/Notifications";
 import Onboarding from "./components/Onboarding";
 import { auth } from "./firebase";
 import "./App.css";
@@ -49,6 +50,7 @@ function App() {
         <Route path="/dashboard" element={isUserVerified ? <Dashboard /> : <Navigate to="/login" />} />
         <Route path="/news" element={isUserVerified ? <News /> : <Navigate to="/login" />} />
         <Route path="/vault" element={isUserVerified ? <Vault /> : <Navigate to="/login" />} />
+        <Route path="/notifications" element={isUserVerified ? <Notifications /> : <Navigate to="/login" />} />
         <Route path="/advisors" element={isUserVerified ? <Advisors /> : <Navigate to="/login" />} />
       </Routes>
     </Router>

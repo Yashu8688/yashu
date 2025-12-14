@@ -1,235 +1,325 @@
-// src/pages/News.js
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Header from "../components/Header";
 import BottomNav from "../components/BottomNav";
-import "./News.css";
 
-function News() {
-  const [activeFilter, setActiveFilter] = useState("all");
+const ImmigrationNews = () => {
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  const newsItems = [
+  const newsData = [
     {
-      id: 1,
-      title: "New OPT Extension Rules Announced",
-      description: "USCIS announces 24-month STEM OPT exten updates for 2026.",
-      source: "USCIS",
-      verified: true,
-      applicableToYou: true,
-      category: "OPT",
-      urgent: false,
+      type: "H-1B",
+      title: "USCIS Announces New H-1B Electronic Registration Process",
+      desc: "Starting March 2024, all H-1B cap registrations must be submitted electronically through the new portal.",
+      impact: "Important if you're planning to apply for H-1B after OPT completion.",
+      date: "Jan 15, 2024",
+      source: "USCIS Official",
     },
     {
-      id: 2,
-      title: "H-1B Visa Cap Registration Opens",
-      description: "Registration period for H-1B lottery opens March 1-17, 2026.",
-      source: "Department of State",
-      verified: true,
-      applicableToYou: true,
-      category: "H-1B",
-      urgent: true,
-    },
-    {
-      id: 3,
-      title: "F-1 Student Work Authorization Updates",
-      description: "New guidelines for F-1 students seeking on-campus employment.",
-      source: "Immigration News",
-      verified: true,
-      applicableToYou: true,
-      category: "F-1",
-      urgent: false,
-    },
-    {
-      id: 4,
-      title: "Travel Advisory for International Students",
-      description: "Important information for students planning international travel.",
-      source: "US Embassy",
-      verified: true,
-      applicableToYou: false,
-      category: "F-1",
-      urgent: false,
+      type: "F-1",
+      title: "OPT Employment Reporting Rules Updated",
+      desc: "Students must report OPT employment updates within 10 days using SEVP.",
+      impact: "Failure to report may affect visa status.",
+      date: "Jan 18, 2024",
+      source: "SEVP",
     },
   ];
 
-  const filters = [
-    { id: "all", label: "All News", count: 24 },
-    { id: "f1", label: "F-1 Visa", count: 8 },
-    { id: "opt", label: "OPT", count: 5 },
-    { id: "h1b", label: "H-1B", count: 6 },
-  ];
+  /* Restore notification preference */
+  useEffect(() => {
+    const saved = localStorage.getItem("newsNotifications");
+    if (saved === "disabled") setNotificationsEnabled(false);
+  }, []);
 
-  const trendingTopics = ["#STEM_OPT", "#H1B_Lottery", "#Travel_Rules", "#CPT_Guidelines"];
-
-  const urgentCount = newsItems.filter(item => item.urgent || item.applicableToYou).length;
+  const toggleNotifications = () => {
+    const newState = !notificationsEnabled;
+    setNotificationsEnabled(newState);
+    localStorage.setItem(
+      "newsNotifications",
+      newState ? "enabled" : "disabled"
+    );
+  };
 
   return (
-    <div className="news-container">
+    <>
       <Header />
+      <style>{`
+        :root {
+          --primary: #4F6EF7;
+          --accent: #6C6FF5;
+          --soft-bg: #F4F8FF;
+          --card-bg: #FFFFFF;
+          --border: #E3EBF5;
+          --text: #1F2937;
+          --muted: #6B7280;
+          --verified: #22C55E;
+        }
 
-      <main className="news-content">
-        {/* News Header Banner */}
-        <div className="news-header-banner">
-          <div className="news-banner-content">
-            <div className="news-banner-left">
-              <h1 className="news-banner-title">
-                Immigration News{" "}
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                  <path d="M7 7H17M7 12H17M7 17H13" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </h1>
-              <p className="news-banner-subtitle">Stay updated with latest immigration updates</p>
+        * {
+          box-sizing: border-box;
+          font-family: Inter, system-ui, sans-serif;
+        }
+
+        body {
+          margin: 0;
+          background: linear-gradient(180deg, #ffffff, var(--soft-bg));
+          color: var(--text);
+        }
+
+        main {
+          max-width: 900px;
+          margin: auto;
+          padding: 30px 20px 40px;
+        }
+
+        h1 {
+          text-align: center;
+          color: var(--primary);
+          margin-bottom: 6px;
+        }
+
+        .subtitle {
+          text-align: center;
+          color: var(--muted);
+          margin-bottom: 24px;
+        }
+
+        .notify-card {
+          max-width: 420px;
+          margin: 0 auto 30px;
+          background: var(--card-bg);
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          padding: 16px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .notify-left {
+          display: flex;
+          gap: 12px;
+          align-items: center;
+        }
+
+        .notify-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: var(--accent);
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .toggle {
+          width: 44px;
+          height: 24px;
+          background: #CBD5E1;
+          border-radius: 999px;
+          position: relative;
+          cursor: pointer;
+        }
+
+        .toggle::after {
+          content: "";
+          width: 18px;
+          height: 18px;
+          background: white;
+          border-radius: 50%;
+          position: absolute;
+          top: 3px;
+          left: 3px;
+          transition: 0.3s;
+        }
+
+        .toggle.active {
+          background: var(--primary);
+        }
+
+        .toggle.active::after {
+          left: 23px;
+        }
+
+        .stats {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+          gap: 16px;
+          margin-bottom: 26px;
+        }
+
+        .stat {
+          background: var(--card-bg);
+          border: 1px solid var(--border);
+          border-radius: 14px;
+          padding: 18px;
+          display: flex;
+          gap: 14px;
+          align-items: center;
+        }
+
+        .stat-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: #EEF2FF;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          color: var(--primary);
+        }
+
+        .news-card {
+          background: var(--card-bg);
+          border: 1px solid var(--border);
+          border-radius: 18px;
+          padding: 26px;
+          margin-bottom: 22px;
+        }
+
+        .card-top {
+          display: flex;
+          gap: 14px;
+          margin-bottom: 14px;
+        }
+
+        .card-icon {
+          width: 42px;
+          height: 42px;
+          border-radius: 50%;
+          background: var(--primary);
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .badges {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+
+        .badge {
+          font-size: 13px;
+          font-weight: 600;
+          padding: 3px 10px;
+          border-radius: 999px;
+          background: #EEF2FF;
+          color: var(--primary);
+        }
+
+        .verified {
+          color: var(--verified);
+          font-size: 13px;
+        }
+
+        .news-title {
+          font-size: 18px;
+          font-weight: 700;
+          margin-bottom: 10px;
+        }
+
+        .news-desc {
+          color: var(--muted);
+          line-height: 1.6;
+          margin-bottom: 16px;
+        }
+
+        .info-box {
+          background: #F1F4FF;
+          border: 1px solid #D6DEFF;
+          padding: 14px;
+          border-radius: 12px;
+          font-size: 14px;
+          margin-bottom: 16px;
+        }
+
+        .news-footer {
+          display: flex;
+          justify-content: space-between;
+          font-size: 13px;
+          color: var(--muted);
+          border-top: 1px solid var(--border);
+          padding-top: 12px;
+        }
+      `}</style>
+
+      <main>
+        <h1>Latest Immigration News</h1>
+        <p className="subtitle">
+          Stay updated with the latest visa, immigration, and policy changes
+        </p>
+
+        <div className="notify-card">
+          <div className="notify-left">
+            <div className="notify-icon">🔔</div>
+            <div>
+              <strong>News Notifications</strong>
+              <br />
+              <small style={{ color: "#6B7280" }}>
+                Get notified of important updates
+              </small>
             </div>
-            <div className="news-banner-badge">Verified Sources. Not Legal Advice.</div>
           </div>
-        </div>
-
-        {/* News Feed Section */}
-        <div className="news-feed-section">
-          <div className="news-feed-header">
-            <div className="news-feed-title-section">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z"
-                  stroke="#10b981"
-                  strokeWidth="2"
-                  fill="none"
-                />
-                <path d="M7 7H17M7 12H17M7 17H13" stroke="#10b981" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-              <div>
-                <h2 className="news-feed-title">News Feed</h2>
-                <p className="news-feed-subtitle">Latest immigration updates</p>
-              </div>
-            </div>
-            <div className="urgent-alert">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path
-                  d="M10 6V10M10 14H10.01M19 10C19 14.9706 14.9706 19 10 19C5.02944 19 1 14.9706 1 10C1 5.02944 5.02944 1 10 1C14.9706 1 19 5.02944 19 10Z"
-                  stroke="#ef4444"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div>
-                <div className="urgent-label">High Priority</div>
-                <div className="urgent-text">Tap to view {urgentCount} urgent updates</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Filter Pills */}
-          <div className="filter-pills">
-            {filters.map((filter) => (
-              <button
-                key={filter.id}
-                className={`filter-pill ${activeFilter === filter.id ? "active" : ""}`}
-                onClick={() => setActiveFilter(filter.id)}
-              >
-                {filter.label} {filter.count}
-              </button>
-            ))}
-          </div>
-
-          {/* News Items */}
-          <div className="news-items">
-            {newsItems.map((item) => (
-              <div key={item.id} className="news-item">
-                <div className="news-item-icon">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z"
-                      stroke="#64748b"
-                      strokeWidth="2"
-                      fill="none"
-                    />
-                    <path d="M14 2V8H20M16 13H8M16 17H8M10 9H8" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <div className="news-item-content">
-                  <h3 className="news-item-title">{item.title}</h3>
-                  <p className="news-item-description">{item.description}</p>
-                  <div className="news-item-meta">
-                    <span className="news-source">Source</span>
-                    <span className="news-dot">•</span>
-                    <span className="news-source-name">{item.source}</span>
-                    <span className="news-dot">•</span>
-                    {item.verified && (
-                      <span className="verified-badge">
-                        OT{" "}
-                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                          <circle cx="7" cy="7" r="6" stroke="#10b981" strokeWidth="1.5" fill="none" />
-                          <path d="M5 7L6.5 8.5L9 6" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" />
-                        </svg>
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="news-item-actions">
-                  {item.applicableToYou && (
-                    <div className="applicable-badge">
-                      <span>Source</span>
-                      <span className="arrow-sep">›</span>
-                      <span className="applicable-text">
-                        Applicable to You{" "}
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                          <path d="M3 6H9M9 6L6 3M9 6L6 9" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" />
-                        </svg>
-                      </span>
-                    </div>
-                  )}
-                  <a href="#read" className="read-link">
-                    Read{" "}
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                      <path d="M3 7H11M11 7L7 3M11 7L7 11" stroke="#6366f1" strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                  </a>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Trending Topics */}
-        <div className="trending-section">
-          <div className="trending-header">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M2 12L8 6L12 10L18 4" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M14 4H18V8" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <h3 className="trending-title">Trending Topics</h3>
-          </div>
-          <div className="trending-tags">
-            {trendingTopics.map((topic, index) => (
-              <button key={index} className="trending-tag">
-                {topic}
-              </button>
-            ))}
-          </div>
-        </div>
-      </main>
-
-      {/* Floating AI Button */}
-      <button className="floating-ai-btn">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z"
-            fill="white"
-            stroke="white"
-            strokeWidth="2"
+          <div
+            className={`toggle ${notificationsEnabled ? "active" : ""}`}
+            onClick={toggleNotifications}
           />
-        </svg>
-      </button>
+        </div>
 
+        <div className="stats">
+          <div className="stat">
+            <div className="stat-icon">!</div>
+            <div>
+              <strong>2</strong>
+              <br />
+              <small>High Priority</small>
+            </div>
+          </div>
+          <div className="stat">
+            <div className="stat-icon">↗</div>
+            <div>
+              <strong>5</strong>
+              <br />
+              <small>Total Updates</small>
+            </div>
+          </div>
+        </div>
+
+        {newsData.map((n, i) => (
+          <div className="news-card" key={i}>
+            <div className="card-top">
+              <div className="card-icon">🛡</div>
+              <div>
+                <div className="badges">
+                  <span className="badge">{n.type}</span>
+                  <span className="verified">✔ Verified</span>
+                </div>
+                <div className="news-title">{n.title}</div>
+              </div>
+            </div>
+
+            <div className="news-desc">{n.desc}</div>
+
+            <div className="info-box">
+              <strong>Why this matters to you:</strong>
+              <br />
+              {n.impact}
+            </div>
+
+            <div className="news-footer">
+              <span>📅 {n.date}</span>
+              <span className="verified">✔ {n.source}</span>
+            </div>
+          </div>
+        ))}
+      </main>
       <BottomNav />
-    </div>
+    </>
   );
-}
+};
 
-export default News;
+export default ImmigrationNews;

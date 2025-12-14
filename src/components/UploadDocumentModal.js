@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth, db } from '../firebase';
+import { auth, db, storage } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import * as pdfParse from 'pdf-parse';
 import Tesseract from 'tesseract.js';
 import mammoth from 'mammoth';
@@ -219,25 +220,47 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
     setError('');
 
     try {
+      // Upload file to Firebase Storage
+      const storagePath = `users/${user.uid}/documents/${Date.now()}_${selectedFile.name}`;
+      const storageRef = ref(storage, storagePath);
+      await uploadBytes(storageRef, selectedFile);
+
+      // Get download URL
+      const fileURL = await getDownloadURL(storageRef);
+
+      // Save document metadata to Firestore
       await addDoc(collection(db, 'users', user.uid, 'documents'), {
         name: selectedFile.name,
         type: finalDocType,
         startDate: startDate ? new Date(startDate) : null,
         expiryDate: expiryDate ? new Date(expiryDate) : null,
         reminderDays: reminders,
-        fileURL: '',
-        storagePath: '',
+        fileURL: fileURL,
+        storagePath: storagePath,
         uploadedAt: serverTimestamp(),
         size: selectedFile.size,
+      });
+
+      // Create notification for document upload
+      await addDoc(collection(db, 'users', user.uid, 'notifications'), {
+        type: 'document_upload',
+        title: 'Document Uploaded Successfully',
+        message: `${selectedFile.name} has been uploaded and saved to your vault.`,
+        documentName: selectedFile.name,
+        documentType: finalDocType,
+        expiryDate: expiryDate ? new Date(expiryDate) : null,
+        reminderDays: reminders,
+        createdAt: serverTimestamp(),
+        read: false,
       });
 
       setUploading(false);
       if (onUploadSuccess) onUploadSuccess();
       else onClose();
-      
+
     } catch (err) {
-      console.error("Firestore save error:", err);
-      setError(`Failed to save document: ${err.message}`);
+      console.error("Upload error:", err);
+      setError(`Failed to upload document: ${err.message}`);
       setUploading(false);
     }
   };
