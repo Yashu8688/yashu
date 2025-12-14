@@ -176,6 +176,15 @@ body {
   color: var(--text-main);
 }
 
+.name-inputs {
+  display: flex;
+  gap: 16px;
+}
+
+.name-input-container {
+  flex: 1;
+}
+
 .email-input-wrapper {
   display: flex;
   align-items: center;
@@ -244,6 +253,19 @@ body {
 
 .password-input::placeholder {
   color: #b1b7c7;
+}
+
+.name-input-wrapper-sm {
+  display: flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  padding: 10px 16px;
+  background: #faf8ff;
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast), background var(--transition-fast);
+  max-width: 200px;
+  margin: 0 auto;
 }
 
 .name-input-wrapper {
@@ -564,4 +586,49 @@ body {
     font-size: 13px;
     text-align: center;
     margin-top: 10px;
+}
+
+.select-wrapper {
+  display: flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  padding: 10px 16px;
+  background: #faf8ff;
+  transition: border-color var(--transition-fast),
+    box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.select-wrapper:focus-within {
+  border-color: #c39bff;
+  box-shadow: 0 0 0 3px rgba(185, 146, 255, 0.25);
+}
+
+.select-icon {
+  margin-right: 8px;
+  font-size: 16px;
+  color: #c2b5ff;
+}
+
+.visa-select {
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 14px;
+  background: transparent;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.visa-select:focus {
+  outline: none;
+}
+
+.date-inputs {
+  display: flex;
+  gap: 16px;
+}
+
+.date-input-container {
+  flex: 1;
 }

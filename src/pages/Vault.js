@@ -38,8 +38,10 @@ function Vault() {
       await deleteDoc(doc(db, 'users', user.uid, 'documents', docId));
 
       // Delete from Storage
-      const storageRef = ref(storage, storagePath);
-      await deleteObject(storageRef);
+      if (storagePath) {
+        const storageRef = ref(storage, storagePath);
+        await deleteObject(storageRef);
+      }
 
     } catch (error) {
       console.error("Error deleting document: ", error);
@@ -62,7 +64,7 @@ function Vault() {
           <div className="vault-panel-header">
             <div>
               <h2>Document Vault</h2>
-              <p className="sub">{allDocuments.length} of 4 required documents uploaded</p>
+              <p className="sub">{allDocuments.length} documents uploaded</p>
             </div>
             <button className="upload-btn" onClick={() => setShowModal(true)}>Upload</button>
           </div>
@@ -84,7 +86,7 @@ function Vault() {
                   <div className="doc-left">
                     <div className="doc-icon">📄</div>
                     <div>
-                      <div className="doc-title">{doc.name} <span className="tag required">Uploaded</span></div>
+                      <div className="doc-title">{doc.name} <span className={`doc-type ${doc.type}`}>{doc.type}</span></div>
                       <div className="doc-meta">Uploaded {doc.uploadedAt?.toDate().toLocaleDateString()} • {(doc.size / 1024 / 1024).toFixed(1)} MB • {doc.startDate && `Starts: ${doc.startDate?.toDate().toLocaleDateString()} • `} Expires: {doc.expiryDate?.toDate().toLocaleDateString()}</div>
                     </div>
                   </div>
@@ -119,7 +121,7 @@ function Vault() {
       <button className="floating-ai-btn">🤖</button>
       <BottomNav />
 
-      {showModal && <UploadDocumentModal onClose={() => setShowModal(false)} />}
+      {showModal && <UploadDocumentModal onClose={() => setShowModal(false)} onUploadSuccess={() => setShowModal(false)} />}
     </div>
   );
 }

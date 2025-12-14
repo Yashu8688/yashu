@@ -3,13 +3,15 @@ import { getFirestore } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getStorage } from 'firebase/storage';
 
+// IMPORTANT: This is a temporary solution for debugging.
+// Storing API keys directly in the code is not recommended.
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID
+  apiKey: "AIzaSyCgo_6PdguGtCkbelyUvYAxc1jqGYHIIjw",
+  authDomain: "voyloo-190a9.firebaseapp.com",
+  projectId: "voyloo-190a9",
+  storageBucket: "voyloo-190a9.firebasestorage.app",
+  messagingSenderId: "41844885212",
+  appId: "1:41844885212:web:a8129bf4c1576459f65619"
 };
 
 const app = initializeApp(firebaseConfig);

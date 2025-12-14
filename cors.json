@@ -2,6 +2,7 @@
 [
   {
     "origin": [
+      "https://3000-firebase-voyloo-version1git-1765532958993.cluster-nzwlpk54dvagsxetkvxzbvslyi.cloudworkstations.dev",
       "https://3001-firebase-voyloo-version1git-1765532958993.cluster-nzwlpk54dvagsxetkvxzbvslyi.cloudworkstations.dev",
       "http://localhost:3000",
       "http://localhost:3001"

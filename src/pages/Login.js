@@ -19,7 +19,14 @@ function Login() {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isRegisterMode, setIsRegisterMode] = useState(false);
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [universityName, setUniversityName] = useState("");
+  const [visaType, setVisaType] = useState("");
+  const [programLevel, setProgramLevel] = useState("");
+  const [major, setMajor] = useState("");
+  const [graduationMonth, setGraduationMonth] = useState("");
+  const [graduationYear, setGraduationYear] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
@@ -71,8 +78,33 @@ function Login() {
     }
 
     if (isRegisterMode) {
-      if (!fullName) {
-        setError("Full name is required");
+      if (!firstName || !lastName) {
+        setError("First name and last name are required");
+        setLoading(false);
+        return;
+      }
+      if (!universityName) {
+        setError("University name is required");
+        setLoading(false);
+        return;
+      }
+      if (!visaType) {
+        setError("Please select a visa type");
+        setLoading(false);
+        return;
+      }
+      if (!programLevel) {
+        setError("Please select a program level");
+        setLoading(false);
+        return;
+      }
+      if (!major) {
+        setError("Major/Field of Study is required");
+        setLoading(false);
+        return;
+      }
+      if (!graduationMonth || !graduationYear) {
+        setError("Expected graduation date is required");
         setLoading(false);
         return;
       }
@@ -86,7 +118,14 @@ function Login() {
         const userCred = await createUserWithEmailAndPassword(auth, email, password);
         await sendEmailVerification(userCred.user);
         await setDoc(doc(db, 'users', userCred.user.uid), {
-            fullName,
+            firstName,
+            lastName,
+            universityName,
+            visaType,
+            programLevel,
+            major,
+            graduationMonth,
+            graduationYear,
             email,
             createdAt: new Date(),
           });
@@ -96,7 +135,14 @@ function Login() {
         setEmail("");
         setPassword("");
         setConfirmPassword("");
-        setFullName("");
+        setFirstName("");
+        setLastName("");
+        setUniversityName("");
+        setVisaType("");
+        setProgramLevel("");
+        setMajor("");
+        setGraduationMonth("");
+        setGraduationYear("");
         setIsRegisterMode(false);
       } catch (err) {
         setError(err.message || 'Registration failed');
@@ -125,6 +171,12 @@ function Login() {
     setSuccessMessage("");
   };
 
+  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() + i);
+  const months = [
+    "January", "February", "March", "April", "May", "June", 
+    "July", "August", "September", "October", "November", "December"
+  ];
+
   return (
     <div className="app-root">
       <header className="app-header">
@@ -148,20 +200,150 @@ function Login() {
           <form className="form" onSubmit={handleSubmit}>
             {isRegisterMode && (
               <>
-                <label className="field-label" htmlFor="fullName">
-                  Full Name
+                <div className="name-inputs">
+                  <div className="name-input-container">
+                    <label className="field-label" htmlFor="firstName">
+                      First Name
+                    </label>
+                    <div className="name-input-wrapper-sm">
+                      <span className="name-icon">👤</span>
+                      <input
+                        id="firstName"
+                        type="text"
+                        required
+                        placeholder="First Name"
+                        className="name-input"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="name-input-container">
+                    <label className="field-label" htmlFor="lastName">
+                      Last Name
+                    </label>
+                    <div className="name-input-wrapper-sm">
+                      <span className="name-icon">👤</span>
+                      <input
+                        id="lastName"
+                        type="text"
+                        required
+                        placeholder="Last Name"
+                        className="name-input"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <label className="field-label" htmlFor="universityName">
+                  University Name
                 </label>
                 <div className="name-input-wrapper">
-                  <span className="name-icon">👤</span>
+                  <span className="name-icon">🎓</span>
                   <input
-                    id="fullName"
+                    id="universityName"
                     type="text"
                     required
-                    placeholder="Enter your full name"
+                    placeholder="Enter your university name"
                     className="name-input"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
+                    value={universityName}
+                    onChange={(e) => setUniversityName(e.target.value)}
                   />
+                </div>
+                <label className="field-label" htmlFor="visaType">
+                  Current Visa Type
+                </label>
+                <div className="select-wrapper">
+                  <span className="select-icon">✈️</span>
+                  <select
+                    id="visaType"
+                    required
+                    className="visa-select"
+                    value={visaType}
+                    onChange={(e) => setVisaType(e.target.value)}
+                  >
+                    <option value="" disabled>Select your visa type</option>
+                    <option value="F-1 Student Visa">F-1 Student Visa</option>
+                    <option value="J-1 Exchange Visitor">J-1 Exchange Visitor</option>
+                    <option value="M-1 Vocational Student">M-1 Vocational Student</option>
+                    <option value="H-1B Work Visa">H-1B Work Visa</option>
+                    <option value="OPT (F-1)">OPT (F-1)</option>
+                    <option value="CPT (F-1)">CPT (F-1)</option>
+                    <option value="Others">Others</option>
+                  </select>
+                </div>
+                <label className="field-label" htmlFor="programLevel">
+                  Program Level
+                </label>
+                <div className="select-wrapper">
+                  <span className="select-icon">📚</span>
+                  <select
+                    id="programLevel"
+                    required
+                    className="visa-select"
+                    value={programLevel}
+                    onChange={(e) => setProgramLevel(e.target.value)}
+                  >
+                    <option value="" disabled>Select your program level</option>
+                    <option value="Undergraduate">Undergraduate</option>
+                    <option value="Graduate (Master's)">Graduate (Master's)</option>
+                    <option value="PhD/Doctoral">PhD/Doctoral</option>
+                    <option value="Certificate Program">Certificate Program</option>
+                    <option value="Post-Doctoral">Post-Doctoral</option>
+                  </select>
+                </div>
+                <label className="field-label" htmlFor="major">
+                  Major/Field of Study
+                </label>
+                <div className="name-input-wrapper">
+                  <span className="name-icon">🔬</span>
+                  <input
+                    id="major"
+                    type="text"
+                    required
+                    placeholder="Enter your major or field of study"
+                    className="name-input"
+                    value={major}
+                    onChange={(e) => setMajor(e.target.value)}
+                  />
+                </div>
+                <label className="field-label">
+                  Expected Graduation Date
+                </label>
+                <div className="date-inputs">
+                  <div className="date-input-container">
+                    <div className="select-wrapper">
+                      <span className="select-icon">📅</span>
+                      <select
+                        required
+                        className="visa-select"
+                        value={graduationMonth}
+                        onChange={(e) => setGraduationMonth(e.target.value)}
+                      >
+                        <option value="" disabled>Month</option>
+                        {months.map((month) => (
+                          <option key={month} value={month}>{month}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="date-input-container">
+                    <div className="select-wrapper">
+                      <span className="select-icon">📅</span>
+                      <select
+                        required
+                        className="visa-select"
+                        value={graduationYear}
+                        onChange={(e) => setGraduationYear(e.target.value)}
+                      >
+                        <option value="" disabled>Year</option>
+                        {years.map((year) => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </>
             )}

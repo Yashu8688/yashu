@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "firebase deploy --only functions": "voyloo-190a9"
+  },
+  "targets": {},
+  "etags": {}
+}
