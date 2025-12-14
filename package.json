@@ -9,11 +9,14 @@
     "@testing-library/user-event": "^13.5.0",
     "firebase": "^12.6.0",
     "i": "^0.3.7",
+    "mammoth": "^1.11.0",
+    "pdf-parse": "^2.4.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-firebase-hooks": "^5.1.1",
     "react-router-dom": "^7.9.6",
     "react-scripts": "5.0.1",
+    "tesseract.js": "^6.0.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

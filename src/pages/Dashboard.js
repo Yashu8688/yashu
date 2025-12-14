@@ -1,6 +1,6 @@
 // src/pages/Dashboard.js
 import React, { useState, useEffect } from "react";
-import { collection, query, onSnapshot, orderBy, limit } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy, limit, where } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import Header from "../components/Header";
 import BottomNav from "../components/BottomNav";
@@ -8,6 +8,8 @@ import "./Dashboard.css";
 
 function Dashboard() {
   const [recentDocuments, setRecentDocuments] = useState([]);
+  const [expiringDocuments, setExpiringDocuments] = useState([]);
+  const [activeTimelineItem, setActiveTimelineItem] = useState(null);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -24,6 +26,43 @@ function Dashboard() {
 
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const q = query(collection(db, 'users', user.uid, 'documents'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const docs = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Include documents that have either startDate or expiryDate
+        if (data.startDate || data.expiryDate) {
+          docs.push({ id: doc.id, ...data });
+        }
+      });
+      // Sort by startDate or expiryDate ascending
+      docs.sort((a, b) => {
+        const aDate = a.startDate || a.expiryDate;
+        const bDate = b.startDate || b.expiryDate;
+        return aDate.toDate() - bDate.toDate();
+      });
+      setExpiringDocuments(docs);
+      // Set the first document as active by default
+      setActiveTimelineItem(docs.length > 0 ? docs[0].id : null);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const calculateDaysLeft = (date) => {
+    if (!date) return null;
+    const today = new Date();
+    const targetDate = date.toDate ? date.toDate() : new Date(date);
+    const diffTime = targetDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
 
   const handleLogout = () => {
     auth.signOut();
@@ -190,67 +229,167 @@ function Dashboard() {
           <div className="overall-progress">
             <div className="progress-header">
               <span>Overall Progress</span>
-              <span className="days-left-badge">45 days left</span>
+              <span className="days-left-badge">
+                {activeTimelineItem ? (
+                  expiringDocuments.find(doc => doc.id === activeTimelineItem) ?
+                    (() => {
+                      const doc = expiringDocuments.find(doc => doc.id === activeTimelineItem);
+                      const startDate = doc.startDate;
+                      const expiryDate = doc.expiryDate;
+                      const today = new Date();
+                      let daysLeft = null;
+
+                      if (startDate && expiryDate) {
+                        daysLeft = calculateDaysLeft(expiryDate);
+                      } else if (expiryDate) {
+                        daysLeft = calculateDaysLeft(expiryDate);
+                      }
+
+                      return daysLeft !== null ? (daysLeft > 0 ? `${daysLeft} days left` : 'Expired') : 'Active';
+                    })()
+                    : '0'
+                ) : '0'}
+              </span>
             </div>
             <div className="progress-bar-container">
-              <div className="progress-bar" style={{ width: "65%" }}></div>
+              <div className="progress-bar" style={{
+                width: activeTimelineItem ? (
+                  expiringDocuments.find(doc => doc.id === activeTimelineItem) ?
+                    (() => {
+                      const doc = expiringDocuments.find(doc => doc.id === activeTimelineItem);
+                      const startDate = doc.startDate;
+                      const expiryDate = doc.expiryDate;
+                      const today = new Date();
+                      let progress = 0;
+
+                      if (startDate && expiryDate) {
+                        const start = startDate.toDate();
+                        const expiry = expiryDate.toDate();
+                        const totalDuration = expiry - start;
+                        const elapsed = today - start;
+                        progress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+                      } else if (expiryDate) {
+                        const daysLeft = calculateDaysLeft(expiryDate);
+                        progress = daysLeft > 0 ? 0 : 100;
+                      } else if (startDate) {
+                        progress = 50;
+                      }
+
+                      return `${progress}%`;
+                    })()
+                    : "65%"
+                ) : "0%"
+              }}></div>
             </div>
             <div className="progress-footer">
-              <span className="progress-percentage">65% Complete</span>
-              <span className="deadline-date">Jan 5, 2026</span>
+              <span className="progress-percentage">
+                {activeTimelineItem ? (
+                  expiringDocuments.find(doc => doc.id === activeTimelineItem) ?
+                    (() => {
+                      const doc = expiringDocuments.find(doc => doc.id === activeTimelineItem);
+                      const startDate = doc.startDate;
+                      const expiryDate = doc.expiryDate;
+                      const today = new Date();
+                      let progress = 0;
+
+                      if (startDate && expiryDate) {
+                        const start = startDate.toDate();
+                        const expiry = expiryDate.toDate();
+                        const totalDuration = expiry - start;
+                        const elapsed = today - start;
+                        progress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+                      } else if (expiryDate) {
+                        const daysLeft = calculateDaysLeft(expiryDate);
+                        progress = daysLeft > 0 ? 0 : 100;
+                      } else if (startDate) {
+                        progress = 50;
+                      }
+
+                      return `${Math.round(progress)}% Complete`;
+                    })()
+                    : "65% Complete"
+                ) : "0% Complete"}
+              </span>
+              <span className="deadline-date">
+                {activeTimelineItem ? (
+                  expiringDocuments.find(doc => doc.id === activeTimelineItem) ?
+                    (() => {
+                      const doc = expiringDocuments.find(doc => doc.id === activeTimelineItem);
+                      const startDate = doc.startDate;
+                      const expiryDate = doc.expiryDate;
+
+                      if (expiryDate) {
+                        return expiryDate.toDate().toLocaleDateString();
+                      } else if (startDate) {
+                        return startDate.toDate().toLocaleDateString();
+                      } else {
+                        return '0';
+                      }
+                    })()
+                    : '0'
+                ) : '0'}
+              </span>
             </div>
           </div>
 
           <div className="timeline-items">
-            <div className="timeline-item">
-              <div className="timeline-dot timeline-dot-inactive"></div>
-              <div className="timeline-content">
-                <div className="timeline-item-title">I-20 Valid Until</div>
-                <div className="timeline-item-desc">Your current I-20 expires - apply for extension if needed</div>
-                <div className="timeline-item-date">May 30, 2026</div>
-              </div>
-              <div className="timeline-badge days-badge">188 days</div>
-            </div>
+            {expiringDocuments.length > 0 ? (
+              expiringDocuments.map((doc, index) => {
+                const startDate = doc.startDate;
+                const expiryDate = doc.expiryDate;
+                const today = new Date();
+                let progress = 0;
+                let daysLeft = null;
+                let status = '';
 
-            <div className="timeline-item active-timeline-item">
-              <div className="timeline-dot timeline-dot-active"></div>
-              <div className="timeline-content">
-                <div className="timeline-item-title">OPT Application Deadline</div>
-                <div className="timeline-item-desc">Submit your OPT application to USCIS</div>
-                <div className="timeline-item-date">Jan 5, 2026</div>
-                <div className="timeline-progress-bar">
-                  <div className="timeline-progress-fill" style={{ width: "80%" }}></div>
+                if (startDate && expiryDate) {
+                  const start = startDate.toDate();
+                  const expiry = expiryDate.toDate();
+                  const totalDuration = expiry - start;
+                  const elapsed = today - start;
+                  progress = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+                  daysLeft = calculateDaysLeft(expiryDate);
+                  status = daysLeft > 0 ? `${daysLeft} days left` : 'Expired';
+                } else if (expiryDate) {
+                  daysLeft = calculateDaysLeft(expiryDate);
+                  status = daysLeft > 0 ? `${daysLeft} days left` : 'Expired';
+                  progress = daysLeft > 0 ? 0 : 100; // Simple progress for expiry only
+                } else if (startDate) {
+                  const start = startDate.toDate();
+                  const daysSinceStart = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+                  status = `${daysSinceStart} days active`;
+                  progress = 50; // Default progress for start date only
+                }
+
+                const isActive = activeTimelineItem === doc.id;
+                return (
+                  <div key={doc.id} className={`timeline-item ${isActive ? 'active-timeline-item' : ''}`} onClick={() => setActiveTimelineItem(doc.id)} style={{ cursor: 'pointer' }}>
+                    <div
+                      className={`timeline-dot ${isActive ? 'timeline-dot-active' : 'timeline-dot-inactive'}`}
+                    ></div>
+                    <div className="timeline-content">
+                      <div className="timeline-item-title">{doc.name}</div>
+                      <div className="timeline-item-desc">
+                        {startDate && expiryDate ? `Valid from ${startDate.toDate().toLocaleDateString()} to ${expiryDate.toDate().toLocaleDateString()}` :
+                         expiryDate ? `Expires on ${expiryDate.toDate().toLocaleDateString()}` :
+                         `Started on ${startDate.toDate().toLocaleDateString()}`}
+                      </div>
+                      <div className="timeline-item-date">{status}</div>
+                    </div>
+                    <div className={`timeline-badge ${daysLeft !== null && daysLeft <= 30 ? 'urgent-badge' : 'days-badge'}`}>
+                      {status}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="timeline-item">
+                <div className="timeline-content">
+                  <div className="timeline-item-title">No Documents with Dates</div>
+                  <div className="timeline-item-desc">Upload documents with start or expiry dates to see them here</div>
                 </div>
               </div>
-              <div className="timeline-badge urgent-badge">⏱ 45 days</div>
-            </div>
-
-            <div className="timeline-item">
-              <div className="timeline-dot timeline-dot-inactive"></div>
-              <div className="timeline-content">
-                <div className="timeline-item-title">OPT Work Authorization Start</div>
-                <div className="timeline-item-desc">Begin Optional Practical Training period</div>
-                <div className="timeline-item-date">May 15, 2026</div>
-              </div>
-            </div>
-
-            <div className="timeline-item">
-              <div className="timeline-dot timeline-dot-inactive"></div>
-              <div className="timeline-content">
-                <div className="timeline-item-title">STEM OPT Extension Eligible</div>
-                <div className="timeline-item-desc">Apply for 24-month STEM extension if eligible</div>
-                <div className="timeline-item-date">Feb 15, 2027</div>
-              </div>
-            </div>
-
-            <div className="timeline-item">
-              <div className="timeline-dot timeline-dot-inactive"></div>
-              <div className="timeline-content">
-                <div className="timeline-item-title">F-1 Status End Date</div>
-                <div className="timeline-item-desc">Complete your immigration status or transition to H-1B</div>
-                <div className="timeline-item-date">Aug 14, 2027</div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 

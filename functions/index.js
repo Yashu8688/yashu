@@ -29,7 +29,7 @@ exports.processDocument = functions.https.onRequest(async (req, res) => {
     const encodedImage = fileBuffer.toString("base64");
     const mimeType = req.get("content-type") || "application/pdf";
     
-    const name = `projects/${process.env.GCLOUD_PROJECT}/locations/us/processors/2eaf2a93011f7bb4`;
+    const name = `projects/${process.env.GCLOUD_PROJECT}/locations/us/processors/c46114d5c18b7679`;
 
     const request = {
       name,

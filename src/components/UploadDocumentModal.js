@@ -3,6 +3,9 @@ import React, { useState } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import * as pdfParse from 'pdf-parse';
+import Tesseract from 'tesseract.js';
+import mammoth from 'mammoth';
 import './UploadDocumentModal.css';
 
 const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
@@ -17,6 +20,110 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
   const [analysisStatus, setAnalysisStatus] = useState('idle'); // 'idle', 'analyzing', 'success', 'error'
   const [error, setError] = useState('');
 
+  const extractTextFromFile = async (file) => {
+    const fileType = file.type.toLowerCase();
+
+    if (fileType.includes('pdf')) {
+      const arrayBuffer = await file.arrayBuffer();
+      const data = await pdfParse(new Uint8Array(arrayBuffer));
+      return data.text;
+    } else if (fileType.includes('image')) {
+      const result = await Tesseract.recognize(file, 'eng');
+      return result.data.text;
+    } else if (fileType.includes('word') || fileType.includes('document')) {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value;
+    } else {
+      throw new Error('Unsupported file type for text extraction');
+    }
+  };
+
+  const parseDatesFromText = (text) => {
+    const datePatterns = [
+      /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/g, // MM/DD/YYYY or DD/MM/YYYY
+      /\b(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/g, // YYYY/MM/DD
+      /\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})\b/gi, // DD Month YYYY
+      /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})\b/gi, // Month DD, YYYY
+    ];
+
+    const dates = [];
+    datePatterns.forEach(pattern => {
+      let match;
+      while ((match = pattern.exec(text)) !== null) {
+        let year, month, day;
+
+        if (match[1].length === 4) {
+          // YYYY/MM/DD format
+          [year, month, day] = match.slice(1, 4);
+        } else if (match[2].match(/\d{1,2}/)) {
+          // MM/DD/YYYY or DD/MM/YYYY - assuming MM/DD/YYYY for US format
+          [month, day, year] = match.slice(1, 4);
+        } else {
+          // Month name formats
+          const monthNames = {
+            jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+            jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+          };
+          const monthName = match[1].toLowerCase().substring(0, 3);
+          month = monthNames[monthName];
+          day = match[2].padStart(2, '0');
+          year = match[3];
+        }
+
+        if (year && month && day) {
+          const dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+          dates.push(dateStr);
+        }
+      }
+    });
+
+    // Remove duplicates and sort
+    const uniqueDates = [...new Set(dates)].sort();
+
+    // Try to identify start and expiry dates based on context
+    let startDate = null;
+    let expiryDate = null;
+
+    const lowerText = text.toLowerCase();
+
+    // Look for keywords to identify date types
+    const startKeywords = ['issue', 'issued', 'start', 'begin', 'from', 'valid from'];
+    const expiryKeywords = ['expire', 'expiry', 'expiration', 'end', 'until', 'valid to', 'valid until'];
+
+    for (const date of uniqueDates) {
+      const dateIndex = lowerText.indexOf(date.replace(/-/g, '/')) ||
+                       lowerText.indexOf(date.replace(/-/g, '-')) ||
+                       lowerText.indexOf(date.split('-').reverse().join('/')) ||
+                       lowerText.indexOf(date.split('-').reverse().join('-'));
+
+      if (dateIndex !== -1) {
+        const context = lowerText.substring(Math.max(0, dateIndex - 50), dateIndex + 50);
+
+        const isStart = startKeywords.some(keyword => context.includes(keyword));
+        const isExpiry = expiryKeywords.some(keyword => context.includes(keyword));
+
+        if (isStart && !startDate) {
+          startDate = date;
+        } else if (isExpiry && !expiryDate) {
+          expiryDate = date;
+        }
+      }
+    }
+
+    // If no specific dates found, use first and last dates as fallback
+    if (!startDate && !expiryDate && uniqueDates.length >= 1) {
+      if (uniqueDates.length === 1) {
+        expiryDate = uniqueDates[0];
+      } else {
+        startDate = uniqueDates[0];
+        expiryDate = uniqueDates[uniqueDates.length - 1];
+      }
+    }
+
+    return { startDate, expiryDate };
+  };
+
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -28,16 +135,17 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
     setAnalysisStatus('analyzing');
 
     try {
+      // Try Cloud Function first
       const functionUrl = 'https://us-central1-voyloo-190a9.cloudfunctions.net/processDocument';
-      
+
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out')), 30000) // 30 seconds timeout
+        setTimeout(() => reject(new Error('Request timed out')), 30000)
       );
 
       const response = await Promise.race([
         fetch(functionUrl, {
           method: 'POST',
-          body: file, // Send the raw file
+          body: file,
           headers: {
             'Content-Type': file.type,
           },
@@ -45,43 +153,38 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
         timeoutPromise
       ]);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Analysis function error response:", response.status, errorText);
-        if (response.status === 404) {
-          throw new Error("The analysis service is not deployed.");
-        } else if (response.status === 500) {
-            throw new Error(`Analysis service failed: ${errorText}`);
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data.startDate || data.expiryDate) {
+          if (data.startDate) {
+            setStartDate(data.startDate.split('T')[0]);
+          }
+          if (data.expiryDate) {
+            setExpiryDate(data.expiryDate.split('T')[0]);
+          }
+          setAnalysisStatus('success');
+          return;
         }
-        throw new Error(errorText || 'Failed to analyze document.');
       }
 
-      const data = await response.json();
+      // Fallback to client-side processing
+      console.log('Cloud function failed or returned no dates, trying client-side processing...');
+      const text = await extractTextFromFile(file);
+      const { startDate, expiryDate } = parseDatesFromText(text);
 
-      if (!data.startDate && !data.expiryDate) {
+      if (startDate || expiryDate) {
+        if (startDate) setStartDate(startDate);
+        if (expiryDate) setExpiryDate(expiryDate);
+        setAnalysisStatus('success');
+      } else {
         setError("Analysis complete, but no dates were found in the document. Please enter them manually.");
         setAnalysisStatus('error');
-        return;
       }
-
-      if (data.startDate) {
-        setStartDate(data.startDate.split('T')[0]);
-      }
-      if (data.expiryDate) {
-        setExpiryDate(data.expiryDate.split('T')[0]);
-      }
-
-      setAnalysisStatus('success');
 
     } catch (err) {
       console.error('Document Analysis Error:', err);
-      if (err.message.includes("timed out")) {
-        setError('Error: The document analysis service took too long to respond. Please try again.');
-      } else if (err.message.includes("not deployed")) {
-        setError('Error: The document analysis service is offline. Please contact your administrator.');
-      } else {
-        setError(`Could not analyze the document. Please enter dates manually. Details: ${err.message}`);
-      }
+      setError(`Could not analyze the document. Please enter dates manually. Details: ${err.message}`);
       setAnalysisStatus('error');
     }
   };
