@@ -4,7 +4,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db, storage } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import * as pdfParse from 'pdf-parse';
+import pdfParse from 'pdf-parse';
 import Tesseract from 'tesseract.js';
 import mammoth from 'mammoth';
 import './UploadDocumentModal.css';
@@ -42,8 +42,8 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
 
   const parseDatesFromText = (text) => {
     const datePatterns = [
-      /\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/g, // MM/DD/YYYY or DD/MM/YYYY
-      /\b(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\b/g, // YYYY/MM/DD
+      /\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b/g, // MM/DD/YYYY or DD/MM/YYYY
+      /\b(\d{4})[/-](\d{1,2})[/-](\d{1,2})\b/g, // YYYY/MM/DD
       /\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})\b/gi, // DD Month YYYY
       /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})\b/gi, // Month DD, YYYY
     ];
@@ -89,8 +89,8 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
     const lowerText = text.toLowerCase();
 
     // Look for keywords to identify date types
-    const startKeywords = ['issue', 'issued', 'start', 'begin', 'from', 'valid from'];
-    const expiryKeywords = ['expire', 'expiry', 'expiration', 'end', 'until', 'valid to', 'valid until'];
+    const startKeywords = ['issue', 'issued', 'start', 'begin', 'from', 'valid from', 'date of issue'];
+    const expiryKeywords = ['expire', 'expiry', 'expiration', 'end', 'until', 'valid to', 'valid until', 'date of expiry'];
 
     for (const date of uniqueDates) {
       const dateIndex = lowerText.indexOf(date.replace(/-/g, '/')) ||
@@ -136,52 +136,64 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
     setAnalysisStatus('analyzing');
 
     try {
-      // Try Cloud Function first
-      const functionUrl = 'https://us-central1-voyloo-190a9.cloudfunctions.net/processDocument';
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64File = reader.result.split(',')[1];
 
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Request timed out')), 30000)
-      );
+        // Try Cloud Function first
+        const functionUrl = 'https://us-central1-voyloo-190a9.cloudfunctions.net/processDocument';
 
-      const response = await Promise.race([
-        fetch(functionUrl, {
-          method: 'POST',
-          body: file,
-          headers: {
-            'Content-Type': file.type,
-          },
-        }),
-        timeoutPromise
-      ]);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Request timed out')), 30000)
+        );
 
-      if (response.ok) {
-        const data = await response.json();
+        const response = await Promise.race([
+          fetch(functionUrl, {
+            method: 'POST',
+            body: JSON.stringify({ file: base64File, contentType: file.type }),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }),
+          timeoutPromise
+        ]);
 
-        if (data.startDate || data.expiryDate) {
-          if (data.startDate) {
-            setStartDate(data.startDate.split('T')[0]);
+        if (response.ok) {
+          const data = await response.json();
+
+          if (data.startDate || data.expiryDate) {
+            if (data.startDate) {
+              setStartDate(data.startDate.split('T')[0]);
+            }
+            if (data.expiryDate) {
+              setExpiryDate(data.expiryDate.split('T')[0]);
+            }
+            setAnalysisStatus('success');
+            return;
           }
-          if (data.expiryDate) {
-            setExpiryDate(data.expiryDate.split('T')[0]);
-          }
-          setAnalysisStatus('success');
-          return;
         }
-      }
 
-      // Fallback to client-side processing
-      console.log('Cloud function failed or returned no dates, trying client-side processing...');
-      const text = await extractTextFromFile(file);
-      const { startDate, expiryDate } = parseDatesFromText(text);
+        // Fallback to client-side processing
+        console.log('Cloud function failed or returned no dates, trying client-side processing...');
+        const text = await extractTextFromFile(file);
+        const { startDate, expiryDate } = parseDatesFromText(text);
 
-      if (startDate || expiryDate) {
-        if (startDate) setStartDate(startDate);
-        if (expiryDate) setExpiryDate(expiryDate);
-        setAnalysisStatus('success');
-      } else {
-        setError("Analysis complete, but no dates were found in the document. Please enter them manually.");
+        if (startDate || expiryDate) {
+          if (startDate) setStartDate(startDate);
+          if (expiryDate) setExpiryDate(expiryDate);
+          setAnalysisStatus('success');
+        } else {
+          setError("Analysis complete, but no dates were found in the document. Please enter them manually.");
+          setAnalysisStatus('error');
+        }
+      };
+      reader.onerror = (error) => {
+        console.error('File reading error:', error);
+        setError('Could not read the file. Please try again.');
         setAnalysisStatus('error');
-      }
+      };
 
     } catch (err) {
       console.error('Document Analysis Error:', err);
@@ -251,7 +263,7 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
         expiryDate: expiryDate ? new Date(expiryDate) : null,
         reminderDays: reminders,
         createdAt: serverTimestamp(),
-        read: false,
+        read: false
       });
 
       setUploading(false);

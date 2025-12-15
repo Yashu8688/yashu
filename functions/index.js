@@ -5,99 +5,72 @@ const axios = require("axios");
 const cheerio = require("cheerio");
 
 admin.initializeApp();
+const db = admin.firestore();
 
 const documentAiClient = new DocumentProcessorServiceClient();
 
+// Keywords for news scraping
+const NEWS_KEYWORDS = [
+    "passport", "visa", "i-94", "i-20", "opt", "stem opt", "ead", 
+    "i-797", "h1b", "l1", "o1", "green card", "conditional green card", 
+    "advance parole", "tps"
+];
+
 exports.processDocument = functions.https.onRequest(async (req, res) => {
-  // Set CORS headers for preflight and actual requests
   res.set("Access-Control-Allow-Origin", "*");
   res.set("Access-control-allow-headers", "Content-Type");
   res.set("Access-Control-Allow-Methods", "POST");
 
   if (req.method === "OPTIONS") {
-    functions.logger.info("Handling OPTIONS request");
     res.status(204).send("");
     return;
   }
-
   if (req.method !== "POST") {
-    functions.logger.warn(`Unexpected method: ${req.method}`);
     return res.status(405).send("Method Not Allowed");
   }
 
   try {
-    functions.logger.info("Received file for processing.");
-    const fileBuffer = req.rawBody;
-    const encodedImage = fileBuffer.toString("base64");
-    const mimeType = req.get("content-type") || "application/pdf";
-    
+    const { file: encodedImage, contentType: mimeType } = req.body;
     const name = `projects/${process.env.GCLOUD_PROJECT}/locations/us/processors/c46114d5c18b7679`;
-
     const request = {
       name,
-      rawDocument: {
-        content: encodedImage,
-        mimeType: mimeType,
-      },
+      rawDocument: { content: encodedImage, mimeType: mimeType },
     };
-
-    functions.logger.info("Sending request to Document AI...");
     const [result] = await documentAiClient.processDocument(request);
     const { document } = result;
-    functions.logger.info("Document AI processing complete.");
 
     let startDate = null;
     let endDate = null;
 
     const formatDate = (date) => {
-      if (!date || !date.year || !date.month || !date.day) {
-        return null;
-      }
-      const year = date.year;
-      const month = String(date.month).padStart(2, '0');
-      const day = String(date.day).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+      if (!date || !date.year || !date.month || !date.day) return null;
+      return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
     };
 
     if (document && document.entities) {
         for (const entity of document.entities) {
-            if (entity.type === "issue_date" && entity.normalizedValue && entity.normalizedValue.dateValue) {
+            if (entity.type === "issue_date" && entity.normalizedValue?.dateValue) {
                 startDate = formatDate(entity.normalizedValue.dateValue);
             }
-            if (entity.type === "expiration_date" && entity.normalizedValue && entity.normalizedValue.dateValue) {
+            if (entity.type === "expiration_date" && entity.normalizedValue?.dateValue) {
                 endDate = formatDate(entity.normalizedValue.dateValue);
             }
         }
     }
-
-    functions.logger.info(`Extracted dates: Start - ${startDate}, End - ${endDate}`);
-
-    res.status(200).json({
-      startDate: startDate,
-      expiryDate: endDate,
-    });
-
+    res.status(200).json({ startDate: startDate, expiryDate: endDate });
   } catch (error) {
     functions.logger.error("Error processing document:", error);
     res.status(500).send(`Error processing document: ${error.message}`);
   }
 });
 
-// Scheduled function to check for expiring documents and send notifications
 exports.checkExpiringDocuments = functions.pubsub.schedule('every 24 hours').onRun(async (context) => {
   const now = new Date();
-  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
   try {
-    // Get all users
     const usersSnapshot = await db.collection('users').get();
-
     for (const userDoc of usersSnapshot.docs) {
       const userId = userDoc.id;
-
-      // Get user's documents
       const documentsSnapshot = await db.collection('users').doc(userId).collection('documents').get();
-
       for (const docSnapshot of documentsSnapshot.docs) {
         const docData = docSnapshot.data();
         const expiryDate = docData.expiryDate?.toDate();
@@ -105,98 +78,85 @@ exports.checkExpiringDocuments = functions.pubsub.schedule('every 24 hours').onR
 
         if (expiryDate) {
           const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
-
-          // Check if we need to send a reminder for any of the selected days
           if (reminderDays.includes(daysUntilExpiry)) {
-            // Check if notification already exists for this document and days
             const existingNotification = await db.collection('users').doc(userId).collection('notifications')
               .where('documentId', '==', docSnapshot.id)
               .where('daysUntilExpiry', '==', daysUntilExpiry)
               .get();
-
             if (existingNotification.empty) {
-              // Create notification
               await db.collection('users').doc(userId).collection('notifications').add({
                 title: `Document Expiring Soon`,
-                message: `${docData.name} will expire in ${daysUntilExpiry} day${daysUntilExpiry > 1 ? 's' : ''}. Please renew or update your document.`,
+                message: `${docData.name} will expire in ${daysUntilExpiry} day${daysUntilExpiry > 1 ? 's' : ''}.`,
                 type: 'expiry',
                 documentId: docSnapshot.id,
                 daysUntilExpiry: daysUntilExpiry,
                 read: false,
                 createdAt: admin.firestore.FieldValue.serverTimestamp()
               });
-
-              functions.logger.info(`Notification created for user ${userId}, document ${docSnapshot.id}, ${daysUntilExpiry} days until expiry`);
             }
           }
         }
       }
     }
-
-    functions.logger.info('Expiring documents check completed');
   } catch (error) {
     functions.logger.error('Error checking expiring documents:', error);
   }
 });
 
-// Function to scrape USCIS news
-exports.scrapeUSCISNews = functions.https.onRequest(async (req, res) => {
-  // Set CORS headers
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Methods", "GET");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
+// Scheduled function to scrape USCIS news
+exports.scrapeUSCISNews = functions.pubsub.schedule('every 6 hours').onRun(async (context) => {
+    const url = 'https://www.uscis.gov/newsroom/news-releases';
+    try {
+        const { data } = await axios.get(url);
+        const $ = cheerio.load(data);
+        const newsItems = [];
 
-  if (req.method === "OPTIONS") {
-    res.status(204).send("");
-    return;
-  }
+        $('article.uscis-news-card').each((i, element) => {
+            const title = $(element).find('h3 a').text().trim();
+            const link = $(element).find('h3 a').attr('href');
+            const date = $(element).find('time').attr('datetime');
+            const summary = $(element).find('p').text().trim();
 
-  if (req.method !== "GET") {
-    return res.status(405).send("Method Not Allowed");
-  }
+            const fullUrl = `https://www.uscis.gov${link}`;
+            const content = `${title} ${summary}`.toLowerCase();
 
-  try {
-    const URL = "https://www.uscis.gov/newsroom/all-news";
-    const KEYWORDS = ["h1-b", "opt", "visa", "green card"];
-
-    const response = await axios.get(URL, { timeout: 10000 });
-    const $ = cheerio.load(response.data);
-
-    const results = [];
-
-    // USCIS news titles are usually inside <a> tags
-    $('a[href]').each((index, element) => {
-      const title = $(element).text().trim();
-      let href = $(element).attr('href');
-
-      if (!title) return;
-
-      const titleLower = title.toLowerCase();
-
-      if (KEYWORDS.some(keyword => titleLower.includes(keyword))) {
-        if (href && href.startsWith("/")) {
-          href = "https://www.uscis.gov" + href;
-        }
-
-        results.push({
-          title: title,
-          url: href
+            if (NEWS_KEYWORDS.some(keyword => content.includes(keyword))) {
+                newsItems.push({ title, url: fullUrl, date, summary });
+            }
         });
-      }
-    });
 
-    // Shuffle results
-    for (let i = results.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [results[i], results[j]] = [results[j], results[i]];
+        for (const item of newsItems) {
+            const docId = item.url.replace(/[^a-zA-Z0-9]/g, '');
+            const docRef = db.collection('news').doc(docId);
+            const doc = await docRef.get();
+            if (!doc.exists) {
+                await docRef.set({
+                    ...item,
+                    scrapedAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+        console.log(`Scraped and saved ${newsItems.length} news items.`);
+    } catch (error) {
+        console.error('Error scraping USCIS news:', error);
     }
+});
 
-    res.status(200).json({
-      news: results
-    });
-
-  } catch (error) {
-    functions.logger.error("Error scraping USCIS news:", error);
-    res.status(500).send(`Error scraping news: ${error.message}`);
-  }
+// Function to get scraped news for the client
+exports.getUSCISNews = functions.https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'GET');
+        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.status(204).send('');
+        return;
+    }
+    try {
+        const snapshot = await db.collection('news').orderBy('date', 'desc').get();
+        const news = snapshot.docs.map(doc => doc.data());
+        res.status(200).json({ news });
+    } catch (error) {
+        console.error('Error getting USCIS news:', error);
+        res.status(500).send('Error getting news.');
+    }
 });

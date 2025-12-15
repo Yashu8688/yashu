@@ -1,28 +1,93 @@
 import React, { useEffect, useState } from "react";
 import Header from "../components/Header";
 import BottomNav from "../components/BottomNav";
+import axios from "axios";
+
+// Temporary sample data
+const sampleNews = [
+    {
+        title: "USCIS Expands Premium Processing for Certain F-1 Students",
+        summary: "U.S. Citizenship and Immigration Services today announced the expansion of premium processing for F-1 students seeking Optional Practical Training (OPT) and STEM OPT extensions.",
+        url: "https://www.uscis.gov/newsroom/news-releases/uscis-expands-premium-processing-for-certain-f-1-students-seeking-opt-and-stem-opt-extensions",
+        date: new Date().toISOString(),
+    },
+    {
+        title: "New Policy Guidance on H-1B Visas",
+        summary: "A new policy memorandum was issued, clarifying the requirements for H-1B petitions, including the definition of a specialty occupation and employer-employee relationships.",
+        url: "https://www.uscis.gov/working-in-the-united-states/temporary-workers/h-1b-specialty-occupations-and-fashion-models/h-1b-policy-memoranda",
+        date: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+    },
+    {
+        title: "TPS for Venezuela Extended and Redesignated",
+        summary: "The Department of Homeland Security announced an 18-month extension and redesignation of Temporary Protected Status (TPS) for Venezuela.",
+        url: "https://www.uscis.gov/humanitarian/temporary-protected-status/temporary-protected-status-and-deferred-enforced-departure/tps-venezuela",
+        date: new Date(Date.now() - 2 * 86400000).toISOString(), 
+    },
+    {
+        title: "I-94 Automation and Access to Travel Records",
+        summary: "U.S. Customs and Border Protection (CBP) has automated Form I-94 at air and sea ports of entry. Travelers will be issued an electronic I-94 instead of a paper one.",
+        url: "https://www.cbp.gov/travel/international-visitors/i-94",
+        date: new Date(Date.now() - 3 * 86400000).toISOString(),
+    },
+    {
+        title: "Green Card Interview Waiver Guidance Updated",
+        summary: "USCIS updated its policy guidance regarding interview waivers for certain family-based conditional permanent residents.",
+        url: "https://www.uscis.gov/newsroom/alerts/uscis-updates-guidance-on-interview-waivers-for-conditional-permanent-residents",
+        date: new Date(Date.now() - 5 * 86400000).toISOString(),
+    },
+    {
+        title: "USCIS Clarifies L-1 Intracompany Transferee Requirements",
+        summary: "New guidance clarifies how USCIS evaluates evidence to determine eligibility for L-1 petitions, particularly for specialized knowledge workers.",
+        url: "https://www.uscis.gov/newsroom/alerts/uscis-clarifies-guidance-on-l-1-petitions",
+        date: new Date(Date.now() - 7 * 86400000).toISOString(),
+    },
+    {
+        title: "Advance Parole Document Production Delays",
+        summary: "USCIS has noted processing delays for Advance Parole documents (Form I-512L). Applicants are advised to file well in advance of planned travel.",
+        url: "https://www.uscis.gov/forms/filing-guidance/tips-for-filing-form-i-131-application-for-travel-document-online",
+        date: new Date(Date.now() - 10 * 86400000).toISOString(),
+    },
+    {
+        title: "STEM OPT Hub Launched on USCIS Website",
+        summary: "A new section on the USCIS website provides comprehensive information for F-1 students, employers, and school officials on the STEM OPT extension.",
+        url: "https://www.uscis.gov/working-in-the-united-states/students-and-exchange-visitors/stem-opt",
+        date: new Date(Date.now() - 12 * 86400000).toISOString(),
+    },
+     {
+        title: "Passport Application Processing Times Updated",
+        summary: "The Department of State has updated the processing times for U.S. passport applications. Routine processing is now estimated at 10-13 weeks.",
+        url: "https://travel.state.gov/content/travel/en/passports/how-apply/processing-times.html",
+        date: new Date(Date.now() - 14 * 86400000).toISOString(),
+    }
+];
 
 const ImmigrationNews = () => {
+  const [newsData, setNewsData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  const newsData = [
-    {
-      type: "H-1B",
-      title: "USCIS Announces New H-1B Electronic Registration Process",
-      desc: "Starting March 2024, all H-1B cap registrations must be submitted electronically through the new portal.",
-      impact: "Important if you're planning to apply for H-1B after OPT completion.",
-      date: "Jan 15, 2024",
-      source: "USCIS Official",
-    },
-    {
-      type: "F-1",
-      title: "OPT Employment Reporting Rules Updated",
-      desc: "Students must report OPT employment updates within 10 days using SEVP.",
-      impact: "Failure to report may affect visa status.",
-      date: "Jan 18, 2024",
-      source: "SEVP",
-    },
-  ];
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        // IMPORTANT: Replace with your actual cloud function URL
+        const response = await axios.get("https://us-central1-docguard-428403.cloudfunctions.net/getUSCISNews");
+        if (response.data.news && response.data.news.length > 0) {
+            setNewsData(response.data.news);
+        } else {
+            // If no news is fetched, use the sample data
+            setNewsData(sampleNews);
+        }
+      } catch (error) {
+        console.error("Error fetching USCIS news:", error);
+        // If there's an error, use the sample data
+        setNewsData(sampleNews);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNews();
+  }, []);
 
   /* Restore notification preference */
   useEffect(() => {
@@ -38,6 +103,12 @@ const ImmigrationNews = () => {
       newState ? "enabled" : "disabled"
     );
   };
+  
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString(undefined, options);
+  }
 
   return (
     <>
@@ -81,6 +152,12 @@ const ImmigrationNews = () => {
           text-align: center;
           color: var(--muted);
           margin-bottom: 24px;
+        }
+        
+        .loading-container, .no-news-container {
+            text-align: center;
+            padding: 50px 20px;
+            color: var(--muted);
         }
 
         .notify-card {
@@ -210,30 +287,31 @@ const ImmigrationNews = () => {
           background: #EEF2FF;
           color: var(--primary);
         }
-
-        .verified {
-          color: var(--verified);
-          font-size: 13px;
+        
+        .news-source {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--verified);
         }
 
         .news-title {
           font-size: 18px;
           font-weight: 700;
           margin-bottom: 10px;
+          color: var(--text);
+        }
+        
+        .news-title-link {
+            text-decoration: none;
+            color: inherit;
+        }
+        .news-title-link:hover {
+            text-decoration: underline;
         }
 
         .news-desc {
           color: var(--muted);
           line-height: 1.6;
-          margin-bottom: 16px;
-        }
-
-        .info-box {
-          background: #F1F4FF;
-          border: 1px solid #D6DEFF;
-          padding: 14px;
-          border-radius: 12px;
-          font-size: 14px;
           margin-bottom: 16px;
         }
 
@@ -244,13 +322,14 @@ const ImmigrationNews = () => {
           color: var(--muted);
           border-top: 1px solid var(--border);
           padding-top: 12px;
+          margin-top: 16px;
         }
       `}</style>
 
       <main>
         <h1>Latest Immigration News</h1>
         <p className="subtitle">
-          Stay updated with the latest visa, immigration, and policy changes
+          Stay updated with the latest visa, immigration, and policy changes from USCIS.
         </p>
 
         <div className="notify-card">
@@ -265,57 +344,43 @@ const ImmigrationNews = () => {
             </div>
           </div>
           <div
-            className={`toggle ${notificationsEnabled ? "active" : ""}`}
+            className={"toggle " + (notificationsEnabled ? "active" : "")}
             onClick={toggleNotifications}
           />
         </div>
 
-        <div className="stats">
-          <div className="stat">
-            <div className="stat-icon">!</div>
-            <div>
-              <strong>2</strong>
-              <br />
-              <small>High Priority</small>
-            </div>
+        {loading ? (
+          <div className="loading-container">
+            <p>Loading news...</p>
           </div>
-          <div className="stat">
-            <div className="stat-icon">↗</div>
-            <div>
-              <strong>5</strong>
-              <br />
-              <small>Total Updates</small>
-            </div>
-          </div>
-        </div>
-
-        {newsData.map((n, i) => (
-          <div className="news-card" key={i}>
-            <div className="card-top">
-              <div className="card-icon">🛡</div>
-              <div>
-                <div className="badges">
-                  <span className="badge">{n.type}</span>
-                  <span className="verified">✔ Verified</span>
+        ) : newsData.length > 0 ? (
+          newsData.map((n, i) => (
+            <div className="news-card" key={i}>
+              <div className="card-top">
+                <div className="card-icon">🛡</div>
+                <div>
+                  <div className="badges">
+                    <span className="news-source">✔ USCIS News</span>
+                  </div>
+                  <a href={n.url} target="_blank" rel="noopener noreferrer" className="news-title-link">
+                    <div className="news-title">{n.title}</div>
+                  </a>
                 </div>
-                <div className="news-title">{n.title}</div>
+              </div>
+  
+              <div className="news-desc">{n.summary}</div>
+  
+              <div className="news-footer">
+                <span>📅 {formatDate(n.date)}</span>
+                <a href={n.url} target="_blank" rel="noopener noreferrer">Read More</a>
               </div>
             </div>
-
-            <div className="news-desc">{n.desc}</div>
-
-            <div className="info-box">
-              <strong>Why this matters to you:</strong>
-              <br />
-              {n.impact}
-            </div>
-
-            <div className="news-footer">
-              <span>📅 {n.date}</span>
-              <span className="verified">✔ {n.source}</span>
-            </div>
+          ))
+        ) : (
+          <div className="no-news-container">
+            <p>No relevant news articles found at the moment. Please check back later.</p>
           </div>
-        ))}
+        )}
       </main>
       <BottomNav />
     </>
