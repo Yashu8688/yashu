@@ -29,14 +29,6 @@ function Vault() {
     return () => unsubscribe();
   }, []);
 
-  const handleViewDocument = (doc) => {
-    if (doc.fileURL) {
-      window.open(doc.fileURL, '_blank');
-    } else {
-      alert('Document URL not available');
-    }
-  };
-
   const handleDownloadDocument = (doc) => {
     if (doc.fileURL) {
       const link = document.createElement('a');
@@ -113,9 +105,6 @@ function Vault() {
                     </div>
                   </div>
                   <div className="doc-actions">
-                    <button className="icon-btn" aria-label="View" onClick={() => handleViewDocument(doc)}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    </button>
                     <button className="icon-btn" aria-label="Download" onClick={() => handleDownloadDocument(doc)}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M21 15V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V15" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M7 10L12 15L17 10" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 15V3" stroke="#374151" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     </button>

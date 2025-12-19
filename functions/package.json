@@ -14,11 +14,13 @@
   "main": "index.js",
   "dependencies": {
     "@google-cloud/documentai": "^9.0.0",
-    "axios": "^1.13.2",
+    "@google-cloud/vertexai": "^1.5.0",
+    "@google/generative-ai": "^0.11.5",
+    "axios": "^1.7.2",
     "busboy": "^1.6.0",
-    "cheerio": "^1.1.2",
+    "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
-    "firebase-admin": "^12.1.0",
+    "firebase-admin": "^12.1.1",
     "firebase-functions": "^5.0.1"
   },
   "devDependencies": {

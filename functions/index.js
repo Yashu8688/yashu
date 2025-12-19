@@ -1,162 +1,94 @@
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { DocumentProcessorServiceClient } = require("@google-cloud/documentai").v1;
-const axios = require("axios");
-const cheerio = require("cheerio");
+const { getStorage } = require("firebase-admin/storage");
+const { getFirestore } = require("firebase-admin/firestore");
+const {
+  VertexAI,
+  HarmCategory,
+  HarmBlockThreshold,
+} = require("@google-cloud/vertexai");
+
+// Initialize CORS to allow all origins
+const cors = require("cors")({ origin: true });
 
 admin.initializeApp();
-const db = admin.firestore();
 
-const documentAiClient = new DocumentProcessorServiceClient();
+const db = getFirestore();
 
-// Keywords for news scraping
-const NEWS_KEYWORDS = [
-    "passport", "visa", "i-94", "i-20", "opt", "stem opt", "ead", 
-    "i-797", "h1b", "l1", "o1", "green card", "conditional green card", 
-    "advance parole", "tps"
-];
+const vertex_ai = new VertexAI({
+  project: "voyloo-190a9",
+  location: "us-central1", 
+});
+const model = "gemini-pro-vision";
 
-exports.processDocument = functions.https.onRequest(async (req, res) => {
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-control-allow-headers", "Content-Type");
-  res.set("Access-Control-Allow-Methods", "POST");
-
-  if (req.method === "OPTIONS") {
-    res.status(204).send("");
-    return;
-  }
-  if (req.method !== "POST") {
-    return res.status(405).send("Method Not Allowed");
-  }
-
-  try {
-    const { file: encodedImage, contentType: mimeType } = req.body;
-    const name = `projects/${process.env.GCLOUD_PROJECT}/locations/us/processors/c46114d5c18b7679`;
-    const request = {
-      name,
-      rawDocument: { content: encodedImage, mimeType: mimeType },
-    };
-    const [result] = await documentAiClient.processDocument(request);
-    const { document } = result;
-
-    let startDate = null;
-    let endDate = null;
-
-    const formatDate = (date) => {
-      if (!date || !date.year || !date.month || !date.day) return null;
-      return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-    };
-
-    if (document && document.entities) {
-        for (const entity of document.entities) {
-            if (entity.type === "issue_date" && entity.normalizedValue?.dateValue) {
-                startDate = formatDate(entity.normalizedValue.dateValue);
-            }
-            if (entity.type === "expiration_date" && entity.normalizedValue?.dateValue) {
-                endDate = formatDate(entity.normalizedValue.dateValue);
-            }
-        }
-    }
-    res.status(200).json({ startDate: startDate, expiryDate: endDate });
-  } catch (error) {
-    functions.logger.error("Error processing document:", error);
-    res.status(500).send(`Error processing document: ${error.message}`);
-  }
+const generativeModel = vertex_ai.getGenerativeModel({
+  model: model,
+  generation_config: {
+    max_output_tokens: 2048,
+    temperature: 0.4,
+    top_p: 1,
+    top_k: 32,
+  },
+  safety_settings: [
+    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
+  ],
 });
 
-exports.checkExpiringDocuments = functions.pubsub.schedule('every 24 hours').onRun(async (context) => {
-  const now = new Date();
-  try {
-    const usersSnapshot = await db.collection('users').get();
-    for (const userDoc of usersSnapshot.docs) {
-      const userId = userDoc.id;
-      const documentsSnapshot = await db.collection('users').doc(userId).collection('documents').get();
-      for (const docSnapshot of documentsSnapshot.docs) {
-        const docData = docSnapshot.data();
-        const expiryDate = docData.expiryDate?.toDate();
-        const reminderDays = docData.reminderDays || [];
+exports.analyzeDocument = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method !== "POST") {
+      return res.status(405).send("Method Not Allowed");
+    }
 
-        if (expiryDate) {
-          const daysUntilExpiry = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
-          if (reminderDays.includes(daysUntilExpiry)) {
-            const existingNotification = await db.collection('users').doc(userId).collection('notifications')
-              .where('documentId', '==', docSnapshot.id)
-              .where('daysUntilExpiry', '==', daysUntilExpiry)
-              .get();
-            if (existingNotification.empty) {
-              await db.collection('users').doc(userId).collection('notifications').add({
-                title: `Document Expiring Soon`,
-                message: `${docData.name} will expire in ${daysUntilExpiry} day${daysUntilExpiry > 1 ? 's' : ''}.`,
-                type: 'expiry',
-                documentId: docSnapshot.id,
-                daysUntilExpiry: daysUntilExpiry,
-                read: false,
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
-              });
-            }
-          }
-        }
+    try {
+      const { file, documentType, uid } = req.body;
+
+      if (!file || !documentType || !uid) {
+        functions.logger.error("Request failed: Missing required fields", { body: req.body });
+        return res.status(400).send("Missing required fields: file, documentType, and uid are required.");
       }
-    }
-  } catch (error) {
-    functions.logger.error('Error checking expiring documents:', error);
-  }
-});
 
-// Scheduled function to scrape USCIS news
-exports.scrapeUSCISNews = functions.pubsub.schedule('every 6 hours').onRun(async (context) => {
-    const url = 'https://www.uscis.gov/newsroom/news-releases';
-    try {
-        const { data } = await axios.get(url);
-        const $ = cheerio.load(data);
-        const newsItems = [];
+      const parts = file.split(";base64,");
+      if (parts.length !== 2) {
+        functions.logger.error("Request failed: Invalid file data format", { file: file.substring(0, 100) });
+        return res.status(400).send("Invalid file data format. Expected a Base64-encoded data URI.");
+      }
+      const mimeType = parts[0].split("data:")[1];
+      const base64Data = parts[1];
 
-        $('article.uscis-news-card').each((i, element) => {
-            const title = $(element).find('h3 a').text().trim();
-            const link = $(element).find('h3 a').attr('href');
-            const date = $(element).find('time').attr('datetime');
-            const summary = $(element).find('p').text().trim();
+      if (!mimeType || !base64Data) {
+        functions.logger.error("Request failed: Could not parse MIME type or data", { file: file.substring(0, 100) });
+        return res.status(400).send("Invalid file data format. Could not parse MIME type or data.");
+      }
 
-            const fullUrl = `https://www.uscis.gov${link}`;
-            const content = `${title} ${summary}`.toLowerCase();
+      const filePart = {
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType,
+        },
+      };
 
-            if (NEWS_KEYWORDS.some(keyword => content.includes(keyword))) {
-                newsItems.push({ title, url: fullUrl, date, summary });
-            }
-        });
+      const textPart = {
+        text: `Analyze the following document which is a ${documentType}. Extract the document's start or issue date and its expiration date. Return the extracted data in a strict JSON format with two keys: 'startDate' and 'expiryDate'. Use the 'YYYY-MM-DD' format for dates. If a date is not found, return null for that key.`,
+      };
 
-        for (const item of newsItems) {
-            const docId = item.url.replace(/[^a-zA-Z0-9]/g, '');
-            const docRef = db.collection('news').doc(docId);
-            const doc = await docRef.get();
-            if (!doc.exists) {
-                await docRef.set({
-                    ...item,
-                    scrapedAt: admin.firestore.FieldValue.serverTimestamp()
-                });
-            }
-        }
-        console.log(`Scraped and saved ${newsItems.length} news items.`);
+      const request = {
+        contents: [{ role: "user", parts: [filePart, textPart] }],
+      };
+
+      const result = await generativeModel.generateContent(request);
+      const analysis = result.response.candidates[0].content.parts[0].text;
+
+      functions.logger.info("Document analysis successful", { uid: uid, analysis: analysis });
+      res.status(200).send({ analysis });
+
     } catch (error) {
-        console.error('Error scraping USCIS news:', error);
+      functions.logger.error("Error analyzing document:", error, { uid: req.body.uid });
+      res.status(500).send(`Error analyzing document: ${error.message}`);
     }
-});
-
-// Function to get scraped news for the client
-exports.getUSCISNews = functions.https.onRequest(async (req, res) => {
-    res.set('Access-Control-Allow-Origin', '*');
-    if (req.method === 'OPTIONS') {
-        res.set('Access-Control-Allow-Methods', 'GET');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
-        res.status(204).send('');
-        return;
-    }
-    try {
-        const snapshot = await db.collection('news').orderBy('date', 'desc').get();
-        const news = snapshot.docs.map(doc => doc.data());
-        res.status(200).json({ news });
-    } catch (error) {
-        console.error('Error getting USCIS news:', error);
-        res.status(500).send('Error getting news.');
-    }
+  });
 });

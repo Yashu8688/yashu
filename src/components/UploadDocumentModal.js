@@ -4,9 +4,6 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import { auth, db, storage } from '../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import pdfParse from 'pdf-parse';
-import Tesseract from 'tesseract.js';
-import mammoth from 'mammoth';
 import './UploadDocumentModal.css';
 
 const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
@@ -20,110 +17,7 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const [analysisStatus, setAnalysisStatus] = useState('idle'); // 'idle', 'analyzing', 'success', 'error'
   const [error, setError] = useState('');
-
-  const extractTextFromFile = async (file) => {
-    const fileType = file.type.toLowerCase();
-
-    if (fileType.includes('pdf')) {
-      const arrayBuffer = await file.arrayBuffer();
-      const data = await pdfParse(new Uint8Array(arrayBuffer));
-      return data.text;
-    } else if (fileType.includes('image')) {
-      const result = await Tesseract.recognize(file, 'eng');
-      return result.data.text;
-    } else if (fileType.includes('word') || fileType.includes('document')) {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      return result.value;
-    } else {
-      throw new Error('Unsupported file type for text extraction');
-    }
-  };
-
-  const parseDatesFromText = (text) => {
-    const datePatterns = [
-      /\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b/g, // MM/DD/YYYY or DD/MM/YYYY
-      /\b(\d{4})[/-](\d{1,2})[/-](\d{1,2})\b/g, // YYYY/MM/DD
-      /\b(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{4})\b/gi, // DD Month YYYY
-      /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})\b/gi, // Month DD, YYYY
-    ];
-
-    const dates = [];
-    datePatterns.forEach(pattern => {
-      let match;
-      while ((match = pattern.exec(text)) !== null) {
-        let year, month, day;
-
-        if (match[1].length === 4) {
-          // YYYY/MM/DD format
-          [year, month, day] = match.slice(1, 4);
-        } else if (match[2].match(/\d{1,2}/)) {
-          // MM/DD/YYYY or DD/MM/YYYY - assuming MM/DD/YYYY for US format
-          [month, day, year] = match.slice(1, 4);
-        } else {
-          // Month name formats
-          const monthNames = {
-            jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
-            jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
-          };
-          const monthName = match[1].toLowerCase().substring(0, 3);
-          month = monthNames[monthName];
-          day = match[2].padStart(2, '0');
-          year = match[3];
-        }
-
-        if (year && month && day) {
-          const dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-          dates.push(dateStr);
-        }
-      }
-    });
-
-    // Remove duplicates and sort
-    const uniqueDates = [...new Set(dates)].sort();
-
-    // Try to identify start and expiry dates based on context
-    let startDate = null;
-    let expiryDate = null;
-
-    const lowerText = text.toLowerCase();
-
-    // Look for keywords to identify date types
-    const startKeywords = ['issue', 'issued', 'start', 'begin', 'from', 'valid from', 'date of issue'];
-    const expiryKeywords = ['expire', 'expiry', 'expiration', 'end', 'until', 'valid to', 'valid until', 'date of expiry'];
-
-    for (const date of uniqueDates) {
-      const dateIndex = lowerText.indexOf(date.replace(/-/g, '/')) ||
-                       lowerText.indexOf(date.replace(/-/g, '-')) ||
-                       lowerText.indexOf(date.split('-').reverse().join('/')) ||
-                       lowerText.indexOf(date.split('-').reverse().join('-'));
-
-      if (dateIndex !== -1) {
-        const context = lowerText.substring(Math.max(0, dateIndex - 50), dateIndex + 50);
-
-        const isStart = startKeywords.some(keyword => context.includes(keyword));
-        const isExpiry = expiryKeywords.some(keyword => context.includes(keyword));
-
-        if (isStart && !startDate) {
-          startDate = date;
-        } else if (isExpiry && !expiryDate) {
-          expiryDate = date;
-        }
-      }
-    }
-
-    // If no specific dates found, use first and last dates as fallback
-    if (!startDate && !expiryDate && uniqueDates.length >= 1) {
-      if (uniqueDates.length === 1) {
-        expiryDate = uniqueDates[0];
-      } else {
-        startDate = uniqueDates[0];
-        expiryDate = uniqueDates[uniqueDates.length - 1];
-      }
-    }
-
-    return { startDate, expiryDate };
-  };
+  const [manualEntry, setManualEntry] = useState(false);
 
   const handleFileSelect = async (e) => {
     const file = e.target.files[0];
@@ -133,60 +27,73 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
     setError('');
     setStartDate('');
     setExpiryDate('');
+
+    if (manualEntry) {
+      setAnalysisStatus('idle');
+      return;
+    }
+    
     setAnalysisStatus('analyzing');
+
+    const finalDocType = docType === 'OTHERS' ? otherDocType : docType;
+
+    if (!user) {
+        setError('You must be logged in to analyze documents.');
+        setAnalysisStatus('error');
+        return;
+    }
+    if (!finalDocType) {
+        setError('Please select a document type before selecting a file.');
+        setAnalysisStatus('error');
+        return;
+    }
 
     try {
       // Convert file to base64
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
-        const base64File = reader.result.split(',')[1];
+        const base64File = reader.result;
 
-        // Try Cloud Function first
-        const functionUrl = 'https://us-central1-voyloo-190a9.cloudfunctions.net/processDocument';
+        const functionUrl = 'https://us-central1-voyloo-190a9.cloudfunctions.net/analyzeDocument';
 
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Request timed out')), 30000)
-        );
-
-        const response = await Promise.race([
-          fetch(functionUrl, {
+        const response = await fetch(functionUrl, {
             method: 'POST',
-            body: JSON.stringify({ file: base64File, contentType: file.type }),
+            body: JSON.stringify({ 
+                file: base64File, 
+                documentType: finalDocType,
+                uid: user.uid
+            }),
             headers: {
               'Content-Type': 'application/json',
             },
-          }),
-          timeoutPromise
-        ]);
+          });
 
         if (response.ok) {
           const data = await response.json();
 
-          if (data.startDate || data.expiryDate) {
-            if (data.startDate) {
-              setStartDate(data.startDate.split('T')[0]);
+          if (data.analysis) {
+            try {
+                // The response from the function is a stringified JSON, so we need to parse it.
+                const analysisData = JSON.parse(data.analysis);
+                if (analysisData.startDate) {
+                    setStartDate(analysisData.startDate.split('T')[0]);
+                }
+                if (analysisData.expiryDate) {
+                    setExpiryDate(analysisData.expiryDate.split('T')[0]);
+                }
+                setAnalysisStatus('success');
+                return;
+            } catch (jsonError) {
+                console.error("Failed to parse analysis JSON:", jsonError);
+                setError("Could not read the analysis result. Please enter dates manually.");
+                setAnalysisStatus('error');
             }
-            if (data.expiryDate) {
-              setExpiryDate(data.expiryDate.split('T')[0]);
-            }
-            setAnalysisStatus('success');
-            return;
           }
-        }
-
-        // Fallback to client-side processing
-        console.log('Cloud function failed or returned no dates, trying client-side processing...');
-        const text = await extractTextFromFile(file);
-        const { startDate, expiryDate } = parseDatesFromText(text);
-
-        if (startDate || expiryDate) {
-          if (startDate) setStartDate(startDate);
-          if (expiryDate) setExpiryDate(expiryDate);
-          setAnalysisStatus('success');
         } else {
-          setError("Analysis complete, but no dates were found in the document. Please enter them manually.");
-          setAnalysisStatus('error');
+            const errorText = await response.text();
+            setError(`Analysis failed: ${errorText}`);
+            setAnalysisStatus('error');
         }
       };
       reader.onerror = (error) => {
@@ -292,8 +199,23 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
 
         <div className="modal-body">
           <div className="section">
+            <label className="label">Manual Entry</label>
+            <div>
+              <input 
+                type="checkbox" 
+                id="manual-entry-checkbox" 
+                checked={manualEntry} 
+                onChange={(e) => setManualEntry(e.target.checked)} 
+                disabled={isProcessing}
+              />
+              <label htmlFor="manual-entry-checkbox" style={{ marginLeft: '10px' }}>
+                Enter document details manually
+              </label>
+            </div>
+          </div>
+          <div className="section">
             <label className="label">Document Type</label>
-            <select className="input" value={docType} onChange={(e) => setDocType(e.target.value)}>
+            <select className="input" value={docType} onChange={(e) => setDocType(e.target.value)} disabled={isProcessing}>
               <option value="PASSPORT">PASSPORT</option>
               <option value="VISA">VISA</option>
               <option value="I_94">I_94</option>
@@ -320,13 +242,14 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
                 value={otherDocType}
                 onChange={(e) => setOtherDocType(e.target.value)}
                 style={{ marginTop: '10px' }}
+                disabled={isProcessing}
               />
             )}
           </div>
 
           <div className="section">
             <label className="label">Document File</label>
-            <div className={`file-upload ${isProcessing ? 'disabled' : ''}`} onClick={triggerFileSelect}>
+            <div className={`file-upload ${isProcessing ? 'disabled' : ''}`} onClick={!isProcessing ? triggerFileSelect : undefined}>
                 <input id="file-input-id" type="file" onChange={handleFileSelect} style={{display: 'none'}} disabled={isProcessing}/>
                 {analysisStatus === 'analyzing' ? (
                   <span>Analyzing document...</span>
@@ -341,12 +264,12 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
 
           <div className="section">
             <label className="label">Start Date</label>
-            <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <input className="input" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} disabled={analysisStatus === 'analyzing'} />
           </div>
 
           <div className="section">
             <label className="label">Expiry Date</label>
-            <input className="input" type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} />
+            <input className="input" type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} disabled={analysisStatus === 'analyzing'} />
           </div>
 
           <div className="section">
@@ -355,7 +278,8 @@ const UploadDocumentModal = ({ onClose, onUploadSuccess }) => {
               {[1, 3, 7, 15, 30].map(days => (
                   <button key={days} 
                       className={`reminder-btn ${reminders.includes(days) ? 'selected' : ''}`}
-                      onClick={() => handleReminderChange(days)}>
+                      onClick={() => handleReminderChange(days)}
+                      disabled={isProcessing}>
                       {days} {days === 1 ? 'day' : 'days'}
                   </button>
               ))}
