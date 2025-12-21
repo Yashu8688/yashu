@@ -4,12 +4,14 @@ import { collection, query, onSnapshot, orderBy, limit, where } from "firebase/f
 import { auth, db } from "../firebase";
 import Header from "../components/Header";
 import BottomNav from "../components/BottomNav";
+import Settings from "../components/Settings";
 import "./Dashboard.css";
 
 function Dashboard() {
   const [recentDocuments, setRecentDocuments] = useState([]);
   const [expiringDocuments, setExpiringDocuments] = useState([]);
   const [activeTimelineItem, setActiveTimelineItem] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -70,7 +72,27 @@ function Dashboard() {
 
   return (
     <div className="dashboard-container">
-      <Header />
+      <Header onSettingsClick={() => setShowSettings(true)} />
+
+      {showSettings && (
+        <div style={{ 
+          position: 'fixed', 
+          top: 0, 
+          right: 0, 
+          width: '400px',
+          height: '100vh',
+          background: 'white', 
+          zIndex: 1000, 
+          overflowY: 'auto',
+          boxShadow: '-2px 0 8px rgba(0,0,0,0.1)',
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          <style>
+            {`@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }`}
+          </style>
+          <Settings onBack={() => setShowSettings(false)} />
+        </div>
+      )}
 
       <main className="dashboard-content">
         <div className="welcome-banner">

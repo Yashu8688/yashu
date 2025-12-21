@@ -13,11 +13,13 @@
     "i": "^0.3.7",
     "mammoth": "^1.11.0",
     "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^5.4.449",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-firebase-hooks": "^5.1.1",
     "react-router-dom": "^7.9.6",
     "react-scripts": "5.0.1",
+    "tessaract": "^1.0.0",
     "tesseract.js": "^6.0.1",
     "web-vitals": "^2.1.4"
   },

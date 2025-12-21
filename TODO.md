@@ -1,25 +1,12 @@
-# TODO List for Firebase Document Upload and Timeline Setup
+# Task: Fix Start Date Extraction in Documents
 
-## 1. Update firebase.js
-- [x] Add Firebase Storage import and export
+## Problem
+The OCR processor is incorrectly identifying birth dates as start dates instead of issue dates, while expiry dates are correct.
 
-## 2. Modify UploadDocumentModal.js
-- [x] Add file input handling
-- [x] Implement file upload to Firebase Storage
-- [x] Save document metadata to Firestore
-- [x] Handle upload progress and errors
+## Plan
+- Remove birth-related keywords from start_keywords_priority list in ocr_processor.py
+- Keywords to remove: "date of birth", "dob", "place of birth", "birth date"
 
-## 3. Update Vault.js
-- [x] Fetch documents from Firestore
-- [x] Replace hardcoded documents with dynamic data
-- [x] Handle loading states and errors
-
-## 4. Update Dashboard.js
-- [ ] Fetch document timelines from Firestore
-- [ ] Display document expiry timelines alongside visa timelines
-
-## 5. Testing
-- [ ] Test document upload functionality
-- [ ] Verify data storage in Firestore
-- [ ] Check timeline display on Dashboard
-- [ ] Ensure Vault shows uploaded documents
+## Steps
+- [x] Edit ocr_processor.py to remove birth-related keywords from start_keywords_priority
+- [ ] Test the changes (if needed)
